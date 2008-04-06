@@ -8,15 +8,22 @@ package com.suite75.quake1.io.pak
 	import flash.utils.ByteArray;
 	import flash.utils.Endian;
 	
+	/**
+	 * class PAKReader
+	 * <p></p>
+	 * 
+	 * @author Tim Knip
+	 */ 
 	public class PAKReader extends EventDispatcher
 	{
+		/** The file's signature, should be 'PACK' */
 		public var signature:String;
 		
-		public var directories:Array;
+		public var entries:Array;
 		
-		public var directory_offset:int;
+		public var entries_offset:int;
 		
-		public var directory_length:int;
+		public var entries_length:int;
 		
 		/**
 		 * Constructor.
@@ -56,8 +63,8 @@ package com.suite75.quake1.io.pak
 			if(this.signature != "PACK")
 				throw new Error("This isn't a Quake1 PAK file!");
 				
-			this.directory_offset = _data.readInt();
-			this.directory_length = _data.readInt();
+			this.entries_offset = _data.readInt();
+			this.entries_length = _data.readInt();
 			
 			readEntries();
 		}
@@ -69,23 +76,23 @@ package com.suite75.quake1.io.pak
 		{
 			var bytesRead:int = 0;
 			
-			_data.position = this.directory_offset;	
+			_data.position = this.entries_offset;	
 			
-			this.directories = new Array();
+			this.entries = new Array();
 			_entryByName = new Object();
 			
-			while(bytesRead < this.directory_length)
+			while(bytesRead < this.entries_length)
 			{
-				var directory:PAKEntry = new PAKEntry();
+				var entry:PAKEntry = new PAKEntry();
 				
-				directory.name = readString();
-				directory.offset = _data.readInt();
-				directory.length = _data.readInt();
+				entry.name = readString();
+				entry.offset = _data.readInt();
+				entry.length = _data.readInt();
 				
-				directories.push(directory);
-				_entryByName[ directory.name ] = directory;
+				entries.push(entry);
+				_entryByName[ entry.name ] = entry;
 				
-				trace(directory.name);
+				trace(entry.name);
 				
 				bytesRead += 64;
 			}
