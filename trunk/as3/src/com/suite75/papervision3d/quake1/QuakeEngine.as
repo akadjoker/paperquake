@@ -25,8 +25,11 @@
  
 package com.suite75.papervision3d.quake1
 {
+	import com.suite75.quake1.data.QuakePalette;
 	import com.suite75.quake1.io.*;
 	
+	import flash.display.Bitmap;
+	import flash.display.BitmapData;
 	import flash.display.Sprite;
 	import flash.events.*;
 	import flash.utils.ByteArray;
@@ -68,6 +71,8 @@ package com.suite75.papervision3d.quake1
 			Papervision3D.log( "" );
 			Papervision3D.log( "Quake Engine v0.1" );
 			
+			_palette = QuakePalette.rgb;
+			
 			this.viewport = new Viewport3D(800, 600);
 			
 			addChild(this.viewport);
@@ -85,7 +90,7 @@ package com.suite75.papervision3d.quake1
 		 * 
 		 * @param	mapName
 		 */
-		public function loadMap( mapName:String ):void
+		public function loadMap(mapName:String):void
 		{
 			_reader = new BspReader( mapName );
 			_reader.addEventListener( Event.COMPLETE, readerCompleteHandler );
@@ -314,7 +319,59 @@ package com.suite75.papervision3d.quake1
 			
 			this.scene.addChild(map);
 			
+			buildTextures();
+			
 			addEventListener(Event.ENTER_FRAME, loop3D);
+		}
+		
+		private function buildTextures():void
+		{
+			var textures:Array = this._reader.textures;	
+			var data:ByteArray = this._reader.data;
+			var px:int = 0;
+			var py:int = 0;
+			
+			for(var i:int = 0; i < textures.length; i++)
+			{
+				var texture:BspTexture = textures[i];
+					
+				// move file pointer to start of color indices 
+				data.position = texture.position + texture.offset1;
+				
+				var bm:BitmapData = new BitmapData(texture.width, texture.height, true, 0xff000000);
+				
+				for(var x:int = 0; x < texture.width; x++)
+				{
+					for(var y:int = 0; y < texture.height; y++)
+					{
+						var a:uint = data.readUnsignedByte();
+						
+						var pal:Array = _palette[a];
+	
+						var r:uint = pal[0];
+						var g:uint = pal[1];
+						var b:uint = pal[2];
+						var col:uint = (r<<16 | g<<8 | b);
+					
+						bm.setPixel(x, y, col);
+					}
+				}
+				
+				var bitmap:Bitmap = new Bitmap(bm);
+				
+				this.addChild(bitmap);
+				
+				bitmap.x = px;
+				bitmap.y = py;
+				
+				px += texture.width + 2;
+				
+				if(px > 760)
+				{
+					px = 0;
+					py += 100;
+				}
+			}
 		}
 		
 		/**
@@ -336,6 +393,7 @@ package com.suite75.papervision3d.quake1
 		private var _reader:BspReader;
 		
 		private var _curLeaf:int;
-		
+
+		private var _palette:Array;
 	}
 }
