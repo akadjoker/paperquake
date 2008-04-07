@@ -32,6 +32,19 @@ package com.suite75.quake1.io.pak
 		{
 		}
 		
+		public function getEntryByName(name:String):ByteArray
+		{
+			var entry:PAKEntry = _entryByName[name];
+			if(!entry)
+				return null;
+				
+			var ba:ByteArray = new ByteArray();
+			
+			//_data.position = entry.offset;
+			ba.writeBytes(_data, entry.offset, entry.length);
+			return ba;
+		}
+		
 		/**
 		 * Load
 		 *
@@ -67,6 +80,8 @@ package com.suite75.quake1.io.pak
 			this.entries_length = _data.readInt();
 			
 			readEntries();
+			
+			dispatchEvent(event);
 		}
 		 
 		/**
