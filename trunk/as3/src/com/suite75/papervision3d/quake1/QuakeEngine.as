@@ -285,7 +285,7 @@ package com.suite75.papervision3d.quake1
 				if( !marked[i] ) continue;
 				
 				var material:MaterialObject3D;
-				var tmp:Array = new Array();
+				var polygon:Array = new Array();
 				var uvs:Dictionary = new Dictionary(true);
 				
 				// get texture info	
@@ -317,7 +317,7 @@ package com.suite75.papervision3d.quake1
 					);
 					
 					// save vertex for triangulation
-					tmp.push(vertex);
+					polygon.push(vertex);
 					
 					// setup the polygon's material
 					material = _bitmapMaterials[surf.texture_info];
@@ -326,8 +326,8 @@ package com.suite75.papervision3d.quake1
 				// fix uvs
 				fixUV(surf, uvs);
 				
-				// need to triangulate, because loop above creates polygons
-				var triangles:Array = triangulate(tmp);
+				// need to triangulate...
+				var triangles:Array = triangulate(polygon);
 				
 				for( k = 0; k < triangles.length; k++ )
 				{
@@ -350,7 +350,6 @@ package com.suite75.papervision3d.quake1
 				surf = this._reader.faces[model.firstface + i];
 			}
 			
-			//map.material.oneSide = false;
 			map.mergeVertices();
 			map.geometry.ready = true;
 			
