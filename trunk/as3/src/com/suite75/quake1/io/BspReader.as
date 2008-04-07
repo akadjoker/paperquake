@@ -437,7 +437,7 @@ package com.suite75.quake1.io
 						var b:uint = pal[2];
 						var col:uint = (r<<16 | g<<8 | b);
 					
-						texture.bitmap.setPixel(x, y, col);				
+						texture.bitmap.setPixel(x, y, col);			
 					}
 				}
 			}
