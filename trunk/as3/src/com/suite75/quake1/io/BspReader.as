@@ -25,6 +25,8 @@
  
 package com.suite75.quake1.io
 {
+	import com.suite75.quake1.data.QuakePalette;
+	
 	import flash.display.*;
 	import flash.events.*;
 	import flash.net.*;
@@ -416,9 +418,31 @@ package com.suite75.quake1.io
 				texture.offset8 = data.readUnsignedInt();
 				
 				this.textures.push(texture);
+				
+				// move file pointer to start of color indices 
+				data.position = texture.position + texture.offset1;
+				
+				texture.bitmap = new BitmapData(texture.width, texture.height, true, 0xff000000);
+				
+				for(var x:int = 0; x < texture.width; x++)
+				{
+					for(var y:int = 0; y < texture.height; y++)
+					{
+						var index:uint = data.readUnsignedByte();
+						
+						var pal:Array = QuakePalette.rgb[index];
+	
+						var r:uint = pal[0];
+						var g:uint = pal[1];
+						var b:uint = pal[2];
+						var col:uint = (r<<16 | g<<8 | b);
+					
+						texture.bitmap.setPixel(x, y, col);				
+					}
+				}
 			}
 		}
-		
+			
 		/**
 		 * 
 		 * @param	data

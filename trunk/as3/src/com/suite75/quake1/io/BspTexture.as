@@ -1,6 +1,6 @@
 package com.suite75.quake1.io
 {
-	import flash.utils.ByteArray;
+	import flash.display.BitmapData;
 	
 	/**
 	 * class BspTexture.
@@ -30,6 +30,7 @@ package com.suite75.quake1.io
 	    public var offset4:int;		// offset to u_char Pix[width/4 * height/4]
 	    public var offset8:int;		// offset to u_char Pix[width/8 * height/8]
 	  	public var position:int;
+	  	public var bitmap:BitmapData;
 	  	
 	  	public function get animated():Boolean
 	  	{
