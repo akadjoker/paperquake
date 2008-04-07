@@ -17,11 +17,19 @@ package com.suite75.quake1.io.mdl
 	 */ 
 	public class MDLReader extends AbstractReader
 	{
+		/**
+		 * Constructor
+		 */ 
 		public function MDLReader()
 		{
 			super(URLLoaderDataFormat.BINARY);
 		}
 		
+		/**
+		 * Parse!
+		 * 
+		 * @param	data
+		 */ 
 		protected override function parse(data:ByteArray):void
 		{
 			data.endian = Endian.LITTLE_ENDIAN;
@@ -32,6 +40,11 @@ package com.suite75.quake1.io.mdl
 			parseVertices(data);
 			parseTriangles(data);
 			parseFrames(data);
+			
+			trace("#skins: " + this.skins.length);
+			trace("#vertices: " + this.vertices.length);
+			trace("#triangles: " + this.triangles.length);
+			trace("#frames: " + this.frames.length);
 			
 			dispatchEvent(new Event(Event.COMPLETE));
 		}
@@ -46,14 +59,11 @@ package com.suite75.quake1.io.mdl
 			this.header = new MDLHeader();
 		
 			this.header.id = data.readInt();
-			
-			if(this.header.id != 0x4F504449)
-				throw new Error("Not a MDL file!");
-			
 			this.header.version = data.readInt();
 			
-			trace("MDL: " + this.header.id.toString(16) + " version:" + this.header.version);
-				
+			if(this.header.id != 0x4F504449 && this.header.version != 6)
+				throw new Error("Not a MDL file!");
+			
 			this.header.scale = new Array();
 			this.header.scale.push(data.readFloat());
 			this.header.scale.push(data.readFloat());
@@ -83,7 +93,7 @@ package com.suite75.quake1.io.mdl
 		}
 		
 		/**
-		 * Parse the skins.
+		 * Parse the skins (usually one).
 		 * 
 		 * @param	data
 		 */ 
@@ -204,6 +214,13 @@ package com.suite75.quake1.io.mdl
 			}
 		}
 		
+		/**
+		 * Reads a simple frame.
+		 * 
+		 * @param	data
+		 * 
+		 * @return the created frame
+		 */ 
 		private function readSimpleFrame(data:ByteArray):MDLSimpleFrame
 		{
 			var frame:MDLSimpleFrame = new MDLSimpleFrame();
@@ -228,6 +245,13 @@ package com.suite75.quake1.io.mdl
 			return frame;	
 		}
 		
+		/**
+		 * Read a frame vertex.
+		 * 
+		 * @param	data
+		 * 
+		 * @return	the created vertex
+		 */ 
 		private function readFrameVertex(data:ByteArray):MDLFrameVertex
 		{
 			var v:MDLFrameVertex = new MDLFrameVertex();
@@ -239,6 +263,13 @@ package com.suite75.quake1.io.mdl
 			return v;
 		}
 		
+		/**
+		 * Read a vertex.
+		 * 
+		 * @param	data
+		 * 
+		 * @return	the created vertex
+		 */ 
 		private function readVertex(data:ByteArray):Array
 		{
 			var values:Array = new Array();
