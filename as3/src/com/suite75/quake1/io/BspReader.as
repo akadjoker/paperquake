@@ -26,12 +26,9 @@
 package com.suite75.quake1.io
 {
 	import flash.display.*;
+	import flash.events.*;
 	import flash.net.*;
-	import flash.events.*;	
 	import flash.utils.*;
-	import mx.utils.StringUtil;
-		
-	import com.suite75.quake1.io.*;
 
 	/**
 	 * 
@@ -44,6 +41,7 @@ package com.suite75.quake1.io
 		
 		public var header:BspHeader;
 		public var planes:Array;
+		public var textures:Array;
 		public var tex_info:Array;
 		public var vertices:Array;
 		public var faces:Array;
@@ -99,6 +97,7 @@ package com.suite75.quake1.io
 			this.header.read( this.data );
 			
 			readPlanes( this.data );
+			readTextures(this.data);
 			readTextureInfo( this.data );
 			readVertexes( this.data );
 			readFaces( this.data );
@@ -113,6 +112,7 @@ package com.suite75.quake1.io
 			readSurfEdges( this.data );
 			
 			trace( "#planes : " + this.planes.length );
+			trace( "#textures : " + this.textures.length );
 			trace( "#tex_info : " + this.tex_info.length );
 			trace( "#vertices : " + this.vertices.length );
 			trace( "#faces : " + this.faces.length );
@@ -337,6 +337,28 @@ package com.suite75.quake1.io
 		}
 		
 		/**
+		 * Reads a string
+		 * 
+		 * @param	maxChars
+		 * 
+		 * @return The String read.
+		 */ 
+		private function readString(maxChars:int = 16):String
+		{
+			var s:String = "";
+			var atEnd:Boolean = false;
+			for(var i:int = 0; i < maxChars; i++)
+			{
+				var c:int = data.readByte();
+				if(c && !atEnd)
+					s += String.fromCharCode(c);
+				else
+					atEnd = true;
+			}
+			return s;
+		}
+
+		/**
 		 * 
 		 * @param	data
 		 */
@@ -355,6 +377,45 @@ package com.suite75.quake1.io
 				var texinfo:BspTexInfo = new BspTexInfo();
 				texinfo.read( data );
 				this.tex_info.push( texinfo );
+			}
+		}
+		
+		/**
+		 * 
+		 * @param	data
+		 */
+		private function readTextures( data:ByteArray ):void
+		{
+			var lump:BspLump = this.header.lumps[BspLump.LUMP_TEXTURES];
+			data.position = lump.offset;
+			
+			this.textures = new Array();
+			
+			var startOffset:int = data.position;
+			
+			var numtex:int = data.readInt();
+			var offsets:Array = new Array();
+			var i:int;
+			
+			for(i = 0; i < numtex; i++)
+				offsets.push(data.readInt());
+			
+			for(i = 0; i < numtex; i++)
+			{
+				data.position = offsets[i] < 0 ? startOffset + 4 + (numtex*4) : startOffset + offsets[i];
+				
+				var texture:BspTexture = new BspTexture();
+				
+				texture.position = data.position;
+				texture.name = readString(16);
+				texture.width = data.readUnsignedInt();
+				texture.height = data.readUnsignedInt();
+				texture.offset1 = data.readUnsignedInt();
+				texture.offset2 = data.readUnsignedInt();
+				texture.offset4 = data.readUnsignedInt();
+				texture.offset8 = data.readUnsignedInt();
+				
+				this.textures.push(texture);
 			}
 		}
 		

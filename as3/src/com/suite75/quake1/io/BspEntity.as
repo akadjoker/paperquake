@@ -128,10 +128,12 @@ package com.suite75.quake1.io
 					
 					case "map":
 						this.map = pEntityLines[i][1];
+						//trace("MAP: " + this.map);
 						break;
 						
 					case "wad":
 						this.wad = pEntityLines[i][1];
+						//trace("WAD: " + this.wad);
 						break;
 						
 					case "targetname":
@@ -184,6 +186,7 @@ package com.suite75.quake1.io
 						
 					case "model":
 						this.model = pEntityLines[i][1];
+						//trace("MODEL: " + this.model);
 						break;
 					
 					case "_minlight":
