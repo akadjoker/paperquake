@@ -114,26 +114,26 @@ package com.suite75.quake1.io.mdl
 					for(j = 0; j < MDLSkinGroup(skin).nb; j++)
 						MDLSkinGroup(skin).time.push(data.readFloat());
 						
-					skin.skin = new Array(MDLSkinGroup(skin).nb);
+					skin.data = new Array(MDLSkinGroup(skin).nb);
 					
 					for(j = 0; j < MDLSkinGroup(skin).nb; j++)
 					{
-						skin.skin[j] = new Array();
+						skin.data[j] = new Array();
 						for(x = 0; x < this.header.skinwidth; x++)
 						{
 							for(y = 0; y < this.header.skinheight; y++)	
-								skin.skin[j].push(data.readUnsignedByte());
+								skin.data[j].push(data.readUnsignedByte());
 						}
 					}
 				}
 				else
 				{
 					skin = new MDLSkin();
-					skin.skin = new Array();
+					skin.data = new Array();
 					for(x = 0; x < this.header.skinwidth; x++)
 					{
 						for(y = 0; y < this.header.skinheight; y++)	
-							skin.skin.push(data.readUnsignedByte());
+							skin.data.push(data.readUnsignedByte());
 					}
 				}	
 				skin.group = group;
@@ -239,9 +239,9 @@ package com.suite75.quake1.io.mdl
 					done = true;
 			}
 
-			frame.frame = new Array();
+			frame.vertices = new Array();
 			for(var j:int = 0; j < header.numverts; j++)
-				frame.frame.push(readFrameVertex(data));
+				frame.vertices.push(readFrameVertex(data));
 			return frame;	
 		}
 		
@@ -311,7 +311,7 @@ class MDLHeader
 class MDLSkin
 {
 	public var group:int;		// 0
-	public var skin:Array;		// [skinwidth*skinheight] the skin picture
+	public var data:Array;		// [skinwidth*skinheight] the skin picture
 	public function MDLSkin(){}
 }
 
@@ -346,7 +346,7 @@ class MDLSimpleFrame
 	public var min:MDLFrameVertex;
 	public var max:MDLFrameVertex;
 	public var name:String;		// [16]
-	public var frame:Array;
+	public var vertices:Array;
 }
 
 class MDLFrame
