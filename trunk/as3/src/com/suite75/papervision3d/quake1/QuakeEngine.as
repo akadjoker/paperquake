@@ -30,12 +30,14 @@ package com.suite75.papervision3d.quake1
 	import flash.display.Sprite;
 	import flash.events.*;
 	import flash.utils.ByteArray;
+	import flash.utils.Dictionary;
 	
 	import org.papervision3d.Papervision3D;
 	import org.papervision3d.cameras.*;
 	import org.papervision3d.core.geom.*;
 	import org.papervision3d.core.geom.renderables.*;
 	import org.papervision3d.core.math.*;
+	import org.papervision3d.core.proto.MaterialObject3D;
 	import org.papervision3d.materials.BitmapMaterial;
 	import org.papervision3d.materials.utils.MaterialsList;
 	import org.papervision3d.objects.DisplayObject3D;
@@ -115,9 +117,11 @@ package com.suite75.papervision3d.quake1
 					
 				var name:String = texture.name;
 				var material:BitmapMaterial = new BitmapMaterial(texture.bitmap);
-				
+
 				if(name.indexOf("+") != -1 || name.indexOf("*") != -1)
 					name = name.substr(1);
+				
+				material.name = name;
 					
 				_bitmapMaterials.push(instance.materials.addMaterial(material, name));
 			}
@@ -251,7 +255,7 @@ package com.suite75.papervision3d.quake1
 			var allreadyViz:Object = new Object();
 			
 			this.map.geometry.vertices = new Array()
-			this.map.faces = new Array();
+			this.map.geometry.faces = new Array();
 			
 			var model:BspModel = this._reader.models[0] as BspModel;
 			
@@ -275,11 +279,23 @@ package com.suite75.papervision3d.quake1
 			var surf:BspFace = this._reader.faces[model.firstface];
 			var numsurfaces:uint = model.numfaces;
 			
-			for( i = 0; i < numsurfaces; i++ )
+			// loop over all polygons
+			for(i = 0; i < numsurfaces; i++)
 			{
 				if( !marked[i] ) continue;
 				
+				var material:MaterialObject3D;
 				var tmp:Array = new Array();
+				var uvs:Dictionary = new Dictionary(true);
+				
+				// get texture info	
+				var texInfo:BspTexInfo = this._reader.tex_info[surf.texture_info];
+				
+				// texture axis
+				var u:Number3D = new Number3D(texInfo.u_axis[0], texInfo.u_axis[1], texInfo.u_axis[2]);
+				var v:Number3D = new Number3D(texInfo.v_axis[0], texInfo.v_axis[1], texInfo.v_axis[2]);
+					
+				// loop over the edges
 				for( j = 0; j < surf.num_edges; j++ )
 				{
 					var idx:int = this._reader.surfedges[surf.first_edge + j];
@@ -287,12 +303,30 @@ package com.suite75.papervision3d.quake1
 					var edge_idx:int = idx < 0 ? -idx : idx;
 					var edge:BspEdge = this._reader.edges[edge_idx];
 					var coord:int = idx < 0 ? edge.endvertex : edge.startvertex;
-							
-					var pt:Array = this._reader.vertices[coord];
 					
-					tmp.push(new Vertex3D(pt[0], pt[1], pt[2]));
+					// get the Quake-vertex
+					var pt:Array = this._reader.vertices[coord];
+
+					// create PV3D vertex
+					var vertex:Vertex3D = new Vertex3D(pt[0], pt[1], pt[2]);
+
+					// create PV3D texcoord
+					uvs[vertex] = new NumberUV(
+						Number3D.dot(vertex.toNumber3D(), u) + texInfo.u_offset,
+						-Number3D.dot(vertex.toNumber3D(), v) + texInfo.v_offset
+					);
+					
+					// save vertex for triangulation
+					tmp.push(vertex);
+					
+					// setup the polygon's material
+					material = _bitmapMaterials[surf.texture_info];
 				}
 				
+				// fix uvs
+				fixUV(surf, uvs);
+				
+				// need to triangulate, because loop above creates polygons
 				var triangles:Array = triangulate(tmp);
 				
 				for( k = 0; k < triangles.length; k++ )
@@ -302,15 +336,17 @@ package com.suite75.papervision3d.quake1
 					var p2:Vertex3D = triangles[k][2] as Vertex3D;
 					
 					map.geometry.vertices.push(p0, p1, p2);
+					 
+					var t0:NumberUV = uvs[ p0 ];
+					var t1:NumberUV = uvs[ p1 ];
+					var t2:NumberUV = uvs[ p2 ];
 					
-					var t0:NumberUV = new NumberUV();
-					var t1:NumberUV = new NumberUV();
-					var t2:NumberUV = new NumberUV();
-					
-					var triangle:Triangle3D = new Triangle3D(this.map, [p0, p1, p2], null, [t0, t1, t2]);
+					var triangle:Triangle3D = new Triangle3D(this.map, [p0, p1, p2], material, [t0, t1, t2]);
 					
 					map.geometry.faces.push(triangle);
 				}
+				
+				// next polygon
 				surf = this._reader.faces[model.firstface + i];
 			}
 			
@@ -320,7 +356,40 @@ package com.suite75.papervision3d.quake1
 			
 			Papervision3D.log( "created mesh v:" + map.geometry.vertices.length + " f:" + map.geometry.faces.length );
 		}
-				
+	
+		/**
+         * 
+         * @param       face
+         * @param       uvs
+         */
+        private function fixUV(face:BspFace, uvs:Dictionary):void
+        {
+        	var uv:NumberUV;
+        	
+            face.min_s = face.min_t = Number.MAX_VALUE;
+            face.max_s = face.max_t = Number.MIN_VALUE;
+            
+            for each(uv in uvs)
+            {
+                face.min_s = Math.min(face.min_s, uv.u);
+                face.min_t = Math.min(face.min_t, uv.v);
+                face.max_s = Math.max(face.max_s, uv.u);
+                face.max_t = Math.max(face.max_t, uv.v);
+            }
+            
+            face.size_s = face.max_s - face.min_s;
+            face.size_t = face.max_t - face.min_t;
+
+            for each(uv in uvs)
+            {
+                uv.u -= face.min_s;
+                uv.v -= face.min_t;
+                
+                uv.u /= face.size_s;
+                uv.v /= face.size_t;
+            }
+        }
+        
 		/**
 		 * 
 		 * @param	event
