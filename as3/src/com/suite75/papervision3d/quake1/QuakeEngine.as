@@ -25,11 +25,8 @@
  
 package com.suite75.papervision3d.quake1
 {
-	import com.suite75.quake1.data.QuakePalette;
 	import com.suite75.quake1.io.*;
 	
-	import flash.display.Bitmap;
-	import flash.display.BitmapData;
 	import flash.display.Sprite;
 	import flash.events.*;
 	import flash.utils.ByteArray;
@@ -39,6 +36,9 @@ package com.suite75.papervision3d.quake1
 	import org.papervision3d.core.geom.*;
 	import org.papervision3d.core.geom.renderables.*;
 	import org.papervision3d.core.math.*;
+	import org.papervision3d.materials.BitmapMaterial;
+	import org.papervision3d.materials.utils.MaterialsList;
+	import org.papervision3d.objects.DisplayObject3D;
 	import org.papervision3d.render.BasicRenderEngine;
 	import org.papervision3d.scenes.Scene3D;
 	import org.papervision3d.view.Viewport3D;
@@ -92,6 +92,35 @@ package com.suite75.papervision3d.quake1
 		{
 			_reader = new BspReader( mapName );
 			_reader.addEventListener( Event.COMPLETE, readerCompleteHandler );
+		}
+		
+		/**
+		 * Builds materials.
+		 * 
+		 * @param	instance The DisplayObject3D to create the materials for.
+		 */ 
+		private function buildMaterials(instance:DisplayObject3D):void
+		{
+			if(!this._reader || !this._reader.textures)
+				return;
+				
+			_bitmapMaterials = new Array();
+			instance.materials = instance.materials || new MaterialsList();
+			
+			for(var i:int = 0; i < this._reader.textures.length; i++)
+			{
+				var texture:BspTexture = this._reader.textures[i];
+				if(!texture || !texture.bitmap)
+					continue;
+					
+				var name:String = texture.name;
+				var material:BitmapMaterial = new BitmapMaterial(texture.bitmap);
+				
+				if(name.indexOf("+") != -1 || name.indexOf("*") != -1)
+					name = name.substr(1);
+					
+				_bitmapMaterials.push(instance.materials.addMaterial(material, name));
+			}
 		}
 		
 		/**
@@ -313,6 +342,8 @@ package com.suite75.papervision3d.quake1
 			
 			this.map = new TriangleMesh3D(null, [], [], "q1-map");
 			
+			buildMaterials(this.map);
+			
 			makeVisible( camPos );
 			
 			this.scene.addChild(map);
@@ -339,5 +370,7 @@ package com.suite75.papervision3d.quake1
 		private var _reader:BspReader;
 		
 		private var _curLeaf:int;
+		
+		private var _bitmapMaterials:Array;
 	}
 }
