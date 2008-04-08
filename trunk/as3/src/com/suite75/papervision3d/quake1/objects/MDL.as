@@ -7,13 +7,16 @@ package com.suite75.papervision3d.quake1.objects
 	import flash.display.BitmapData;
 	import flash.events.Event;
 	
+	import org.papervision3d.Papervision3D;
 	import org.papervision3d.core.geom.TriangleMesh3D;
 	import org.papervision3d.core.geom.renderables.Triangle3D;
 	import org.papervision3d.core.geom.renderables.Vertex3D;
+	import org.papervision3d.core.math.Matrix3D;
 	import org.papervision3d.core.math.NumberUV;
+	import org.papervision3d.core.proto.MaterialObject3D;
+	import org.papervision3d.core.render.data.RenderSessionData;
 	import org.papervision3d.materials.BitmapMaterial;
-	import org.papervision3d.materials.special.CompositeMaterial;
-	import org.papervision3d.objects.special.UCS;
+	import org.papervision3d.objects.DisplayObject3D;
 	
 	/**
 	 * Quake 1 Entity Alias Model (MDL)
@@ -23,26 +26,61 @@ package com.suite75.papervision3d.quake1.objects
 	 */ 
 	public class MDL extends TriangleMesh3D
 	{
+		/** Whether to center the mesh on origin. */
+		public var centerMesh:Boolean;
+		
+		/** Scale to use when loading. */
+		public var loadScale:Number;
+		
+		/** */
+		public var frames:Array;
+		
 		/**
 		 * Constructor.
 		 * 
-		 * @param	name	An optional name for this mesh.
+		 * @param	centerMesh	Center the mesh on origin?
+		 * @param	loadScale	Scale
+		 * @param	name		Optional name for this mesh.
 		 */ 
-		public function MDL(name:String=null)
+		public function MDL(centerMesh:Boolean=true, loadScale:Number=1, name:String=null)
 		{
 			super(null, [], [], name);
+			this.centerMesh = centerMesh;
+			this.loadScale = loadScale;
 		}
 		
 		/**
 		 * Load.
 		 * 
-		 * @param	asset url or a ByteArray
+		 * @param	asset 		Url or ByteArray.
+		 * @param	material	An optional material for the model.
 		 */ 
-		public function load(asset:*):void
+		public function load(asset:*, material:MaterialObject3D=null):void
 		{
+			_loadMaterial = material;
+			
 			var mdl:MDLReader = new MDLReader();
 			mdl.addEventListener(Event.COMPLETE, onParseComplete);
 			mdl.load(asset);
+		}
+		
+		/**
+		 * Project
+		 */ 
+		public override function project(parent:DisplayObject3D, renderSessionData:RenderSessionData):Number
+		{
+			if(this.frames && this.frames.length)
+			{
+				_curFrame = _curFrame < this.frames.length - 1 ? _curFrame + 1 : 0;
+				
+				this.geometry = this.frames[_curFrame].geometry;
+			}
+			
+			if(_queuedFrames.length)
+			{
+				buildFrame(_mdl, _queuedFrames.shift() as MDLSimpleFrame);
+			}
+			return super.project(parent, renderSessionData);
 		}
 		
 		/**
@@ -56,29 +94,70 @@ package com.suite75.papervision3d.quake1.objects
 			var frame:MDLSimpleFrame = mdl.frames[0].frame;
 			var i:int, j:int;
 			var texture:BitmapData = buildTextureFromSkin(0, mdl);
+
+			this.material = _loadMaterial || new BitmapMaterial(texture);
 			
-			this.material = new CompositeMaterial();
-			CompositeMaterial(this.material).addMaterial(new BitmapMaterial(texture));
-			//CompositeMaterial(this.material).addMaterial(new WireframeMaterial());
+			var verbose:Boolean = Papervision3D.VERBOSE;
+			Papervision3D.VERBOSE = !verbose;
+			buildFrames(mdl);
+			Papervision3D.VERBOSE = verbose;
 			
-			this.geometry.vertices = new Array();
-			this.geometry.faces = new Array();
+			this.geometry = this.frames[0].geometry;
+			this.geometry.ready = true;
+			this.rotationX = 90;
 			
-			for(i = 0; i < header.numtris; i++)
+			_curFrame = 0;
+			
+			trace("MDL v:" + this.geometry.vertices.length + " f:" + this.geometry.faces.length);
+		}
+		
+		/**
+		 * 
+		 */ 
+		private function buildFrames(mdl:MDLReader):void
+		{
+			var header:MDLHeader = mdl.header;
+			
+			this.frames = new Array();
+			_queuedFrames = new Array();
+			
+			for(var i:int = 0; i < header.numframes; i++)
+			{
+				var frame:MDLSimpleFrame = mdl.frames[i].frame;
+				if(i)
+					_queuedFrames.push(frame);
+				else
+					buildFrame(mdl, frame);
+			}
+		}
+		
+		/**
+		 * Builds a frame.
+		 * 
+		 * @param	mdl
+		 * @param	frame
+		 */ 
+		private function buildFrame(mdl:MDLReader, frame:MDLSimpleFrame):void
+		{
+			var header:MDLHeader = mdl.header;
+		
+			var tmpMesh:TriangleMesh3D = new TriangleMesh3D(null, [], [], frame.name);	
+			
+			for(var i:int = 0; i < header.numtris; i++)
 			{
 				var tri:MDLTriangle = mdl.triangles[i];
 				var verts:Array = new Array();
 				var uvs:Array = new Array();
-				
-				for(j = 0; j < 3; j++)
+			
+				for(var j:int = 0; j < 3; j++)
 				{
 					var fv:MDLFrameVertex = frame.vertices[ tri.vertex[j] ];	
 					var v:Vertex3D = new Vertex3D();
 	    		
 	    			// Calculate real vertex position
-	    			v.x = (header.scale[0] * fv.packedposition[0]) + header.offsets[0];
-	    			v.y = (header.scale[1] * fv.packedposition[1]) + header.offsets[1];
-	    			v.z = (header.scale[2] * fv.packedposition[2]) + header.offsets[2];
+	    			v.x = ((header.scale[0] * fv.packedposition[0]) + header.offsets[0]) * this.loadScale;
+	    			v.y = ((header.scale[1] * fv.packedposition[1]) + header.offsets[1]) * this.loadScale;
+	    			v.z = ((header.scale[2] * fv.packedposition[2]) + header.offsets[2]) * this.loadScale;
 	    			
 	    			verts.push(v);
 
@@ -95,17 +174,24 @@ package com.suite75.papervision3d.quake1.objects
 	    			t = (t + 0.5) / header.skinheight;
 	    			
 	    			uvs.push(new NumberUV(s, 1-t));
-				}	
-				
-				this.geometry.vertices = this.geometry.vertices.concat(verts);
-				this.geometry.faces.push(new Triangle3D(this, verts, this.material, uvs));
+  				 }
+  				 
+  				tmpMesh.geometry.vertices = tmpMesh.geometry.vertices.concat(verts);
+				tmpMesh.geometry.faces.push(new Triangle3D(tmpMesh, verts, this.material, uvs));
 			}
 			
-			this.mergeVertices();
-			this.geometry.ready = true;
-			this.rotationX = 90;
-
-			trace("MDL v:" + this.geometry.vertices.length + " f:" + this.geometry.faces.length);
+			tmpMesh.mergeVertices();
+			
+			if(this.centerMesh)
+			{
+				var bbox:Object = tmpMesh.boundingBox();
+				var dx:Number = -bbox.min.x-(bbox.size.x/2); 
+				var dy:Number = -bbox.min.y-(bbox.size.y/2); 
+				var dz:Number = -bbox.min.z-(bbox.size.z/2); 
+				tmpMesh.transformVertices(Matrix3D.translationMatrix(dx, dy, 0));
+			}
+			
+			this.frames.push(tmpMesh);
 		}
 		
 		/**
@@ -140,7 +226,18 @@ package com.suite75.papervision3d.quake1.objects
 		 */ 	
 		private function onParseComplete(event:Event):void
 		{
-			buildMesh(event.target as MDLReader);	
+			_mdl = event.target as MDLReader;
+			buildMesh(_mdl);	
 		}
+		
+		private var _loadMaterial:MaterialObject3D;
+		
+		private var _curFrame:int = 0;
+		
+		private var _queuedFrames:Array;
+		
+		private var _parsing:Boolean;
+		
+		private var _mdl:MDLReader;
 	}
 }

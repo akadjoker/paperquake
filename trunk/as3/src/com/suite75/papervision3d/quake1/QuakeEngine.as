@@ -82,6 +82,8 @@ package com.suite75.papervision3d.quake1
 			
 			this.camera = new FrustumCamera3D(this.viewport, 90, 1, 10000);	
 			
+			_camPos = new Vertex3D();
+			
 			addEventListener(Event.ENTER_FRAME, loop3D);
 		}
 		
@@ -130,22 +132,17 @@ package com.suite75.papervision3d.quake1
 		 * 
 		 * @param	event
 		 */
-		private function loop3D( event:Event ):void
+		public function loop3D( event:Event ):void
 		{
-			//if( this.map )
-			//{
-				//this.camera.pitch(1);
-				//this.camera.yaw(1);
-				//this.camera.roll(1);
-			//	this.camera.rotationZ++;
-				
-				this.renderer.renderScene(scene, camera, viewport);
-			//}
-			
 			if(this.map)
 			{
-				this.map.rotationY++;
+				_camPos.x = this.camera.x;
+				_camPos.y = this.camera.y;
+				_camPos.z = this.camera.z;
+				
+				makeVisible();
 			}
+			this.renderer.renderScene(scene, camera, viewport);
 		}
 		
 		/**
@@ -221,15 +218,18 @@ package com.suite75.papervision3d.quake1
 		/**
 		 * 
 		 */
-		private function makeVisible( camPos:Vertex3D ):void
+		private function makeVisible():void
 		{
-			_curLeaf = findLeaf( camPos );
+			var idx:int = findLeaf( _camPos );
+			if(idx == _curLeaf)
+				return;
+			_curLeaf = idx;
 			var leaf:BspLeaf = this._reader.leaves[_curLeaf];
 			
 			trace( "mins:" + leaf.mins );
 			trace( "maxs:" + leaf.maxs );
 			trace( "visofs:" + leaf.visofs );
-			trace( "contents:" + leaf.contents );
+			trace( "contents:" + _curLeaf );
 			
 			var lump:BspLump = this._reader.header.lumps[BspLump.LUMP_VISIBILITY] as BspLump;
 			var num:int = (this._reader.leaves.length+7) >> 3;
@@ -390,6 +390,8 @@ package com.suite75.papervision3d.quake1
                 
                 uv.u /= face.size_s;
                 uv.v /= face.size_t;
+                
+                uv.v = 1 - uv.v;
             }
         }
         
@@ -416,11 +418,12 @@ package com.suite75.papervision3d.quake1
 			
 			buildMaterials(this.map);
 			
-			makeVisible( camPos );
+			
 			
 			this.scene.addChild(map);
 			
-			addEventListener(Event.ENTER_FRAME, loop3D);
+			this.camera.yaw(0);
+		//	addEventListener(Event.ENTER_FRAME, loop3D);
 		}
 		
 		/**
@@ -444,5 +447,7 @@ package com.suite75.papervision3d.quake1
 		private var _curLeaf:int;
 		
 		private var _bitmapMaterials:Array;
+		
+		private var _camPos:Vertex3D;
 	}
 }
