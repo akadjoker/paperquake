@@ -1,14 +1,19 @@
 package com.suite75.papervision3d.quake1.objects
 {
+	import com.suite75.quake1.data.QuakePalette;
 	import com.suite75.quake1.io.mdl.MDLReader;
 	import com.suite75.quake1.io.mdl.types.*;
 	
+	import flash.display.BitmapData;
 	import flash.events.Event;
 	
 	import org.papervision3d.core.geom.TriangleMesh3D;
 	import org.papervision3d.core.geom.renderables.Triangle3D;
 	import org.papervision3d.core.geom.renderables.Vertex3D;
 	import org.papervision3d.core.math.NumberUV;
+	import org.papervision3d.materials.BitmapMaterial;
+	import org.papervision3d.materials.special.CompositeMaterial;
+	import org.papervision3d.objects.special.UCS;
 	
 	/**
 	 * Quake 1 Entity Alias Model (MDL)
@@ -50,6 +55,11 @@ package com.suite75.papervision3d.quake1.objects
 			var header:MDLHeader = mdl.header;
 			var frame:MDLSimpleFrame = mdl.frames[0].frame;
 			var i:int, j:int;
+			var texture:BitmapData = buildTextureFromSkin(0, mdl);
+			
+			this.material = new CompositeMaterial();
+			CompositeMaterial(this.material).addMaterial(new BitmapMaterial(texture));
+			//CompositeMaterial(this.material).addMaterial(new WireframeMaterial());
 			
 			this.geometry.vertices = new Array();
 			this.geometry.faces = new Array();
@@ -84,15 +94,43 @@ package com.suite75.papervision3d.quake1.objects
 	    			s = (s + 0.5) / header.skinwidth;
 	    			t = (t + 0.5) / header.skinheight;
 	    			
-	    			uvs.push(new NumberUV(s, t));
+	    			uvs.push(new NumberUV(s, 1-t));
 				}	
 				
 				this.geometry.vertices = this.geometry.vertices.concat(verts);
-				this.geometry.faces.push(new Triangle3D(this, verts, null, uvs));
+				this.geometry.faces.push(new Triangle3D(this, verts, this.material, uvs));
 			}
 			
 			this.mergeVertices();
 			this.geometry.ready = true;
+			this.rotationX = 90;
+
+			trace("MDL v:" + this.geometry.vertices.length + " f:" + this.geometry.faces.length);
+		}
+		
+		/**
+		 * Make a texture given a skin index 'n'.
+		 * 
+		 * @param	n	skin index
+		 * @param	mdl
+		 */ 
+		private function buildTextureFromSkin(n:int, mdl:MDLReader):BitmapData
+		{
+			var bitmap:BitmapData = new BitmapData(mdl.header.skinwidth, mdl.header.skinheight, false, 0xffffff);
+			var colormap:Array = QuakePalette.rgb;
+			var skin:MDLSkin = mdl.skins[n];
+			var index:int = 0;
+			
+			for(var y:int = 0; y < mdl.header.skinheight; y++)
+			{
+				for(var x:int = 0; x < mdl.header.skinwidth; x++)
+				{
+					var rgb:Array = colormap[ skin.data[index++] ];
+					var color:int = rgb[0] << 16 | rgb[1] << 8 | rgb[2];
+					bitmap.setPixel(x, y, color);	
+				}
+			} 
+			return bitmap;	
 		}
 		
 		/**

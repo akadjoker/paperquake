@@ -49,7 +49,7 @@ package com.suite75.papervision3d.quake1
 	{
 		public var scene:Scene3D;
 		
-		public var camera:FreeCamera3D;
+		public var camera:FrustumCamera3D;
 		
 		public var viewport:Viewport3D;
 		
@@ -80,10 +80,7 @@ package com.suite75.papervision3d.quake1
 			this.renderer = new BasicRenderEngine();
 			this.scene = new Scene3D();
 			
-			this.camera = new FreeCamera3D();	
-			
-			this.camera.zoom = 5;
-			this.camera.focus = 30;
+			this.camera = new FrustumCamera3D(this.viewport, 90, 1, 10000);	
 			
 			addEventListener(Event.ENTER_FRAME, loop3D);
 		}
@@ -146,7 +143,9 @@ package com.suite75.papervision3d.quake1
 			//}
 			
 			if(this.map)
+			{
 				this.map.rotationY++;
+			}
 		}
 		
 		/**
