@@ -84,6 +84,8 @@ package com.suite75.papervision3d.quake1
 			
 			this.camera.zoom = 5;
 			this.camera.focus = 30;
+			
+			addEventListener(Event.ENTER_FRAME, loop3D);
 		}
 		
 		/**
@@ -133,15 +135,18 @@ package com.suite75.papervision3d.quake1
 		 */
 		private function loop3D( event:Event ):void
 		{
-			if( this.map )
-			{
+			//if( this.map )
+			//{
 				//this.camera.pitch(1);
 				//this.camera.yaw(1);
 				//this.camera.roll(1);
-				this.camera.rotationZ++;
+			//	this.camera.rotationZ++;
 				
 				this.renderer.renderScene(scene, camera, viewport);
-			}
+			//}
+			
+			if(this.map)
+				this.map.rotationY++;
 		}
 		
 		/**
