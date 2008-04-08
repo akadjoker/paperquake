@@ -1,10 +1,9 @@
 package com.suite75.quake1.io.pak
 {
+	import com.suite75.quake1.io.AbstractReader;
+	
 	import flash.events.Event;
-	import flash.events.EventDispatcher;
-	import flash.net.URLLoader;
 	import flash.net.URLLoaderDataFormat;
-	import flash.net.URLRequest;
 	import flash.utils.ByteArray;
 	import flash.utils.Endian;
 	
@@ -14,7 +13,7 @@ package com.suite75.quake1.io.pak
 	 * 
 	 * @author Tim Knip
 	 */ 
-	public class PAKReader extends EventDispatcher
+	public class PAKReader extends AbstractReader
 	{
 		/** The file's signature, should be 'PACK' */
 		public var signature:String;
@@ -30,8 +29,12 @@ package com.suite75.quake1.io.pak
 		 */
 		public function PAKReader()
 		{
+			super(URLLoaderDataFormat.BINARY)
 		}
 		
+		/**
+		 * 
+		 */ 
 		public function getEntryByName(name:String):ByteArray
 		{
 			var entry:PAKEntry = _entryByName[name];
@@ -46,42 +49,27 @@ package com.suite75.quake1.io.pak
 		}
 		
 		/**
-		 * Load
-		 *
-		 * @param	url
-		 */  
-		public function load(url:String):void
-		{
-			var loader:URLLoader = new URLLoader();
-			loader.dataFormat = URLLoaderDataFormat.BINARY;
-			loader.addEventListener(Event.COMPLETE, onLoadComplete);
-			loader.load(new URLRequest(url));
-		}
-		
-		/**
-		 * Fired when the PAK was loaded from disk.
+		 * Parse!
 		 * 
-		 * @param	event
+		 * @param	data
 		 */ 
-		private function onLoadComplete(event:Event):void
+		protected override function parse(data:ByteArray):void
 		{
-			var loader:URLLoader = event.target as URLLoader;
-			
-			_data = loader.data;
+			_data = data;
 			_data.position = 0;
 			_data.endian = Endian.LITTLE_ENDIAN;
 			
 			this.signature = readSignature();
 			
 			if(this.signature != "PACK")
-				throw new Error("This isn't a Quake1 PAK file!");
+				throw new Error("Not a Quake1 PAK file!");
 				
 			this.entries_offset = _data.readInt();
 			this.entries_length = _data.readInt();
 			
 			readEntries();
 			
-			dispatchEvent(event);
+			dispatchEvent(new Event(Event.COMPLETE));
 		}
 		 
 		/**

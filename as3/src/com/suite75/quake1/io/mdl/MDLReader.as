@@ -1,6 +1,7 @@
 package com.suite75.quake1.io.mdl
 {
 	import com.suite75.quake1.io.AbstractReader;
+	import com.suite75.quake1.io.mdl.types.*;
 	
 	import flash.events.Event;
 	import flash.net.URLLoaderDataFormat;
@@ -8,15 +9,31 @@ package com.suite75.quake1.io.mdl
 	import flash.utils.Endian;
 	
 	/**
-	 * Entity Alias Model
+	 * Entity Alias Model (MDL)
 	 * <p>Alias models can be used for entities, like players, objects, or monsters. 
 	 * Some entities can use sprite models (that are similar in appearance to those of DOOM, though the 
 	 * structure is totally different) or even maybe models similar to those of the levels.</p>
+	 * reference: http://tfc.duke.free.fr/coding/mdl-specs-en.html
 	 * 
 	 * @author Tim Knip
 	 */ 
 	public class MDLReader extends AbstractReader
 	{
+		/** */
+		public var header:MDLHeader;
+		
+		/** */
+		public var skins:Array;
+		
+		/** */
+		public var texcoords:Array;
+		
+		/** */
+		public var triangles:Array;
+		
+		/** */
+		public var frames:Array;
+		
 		/**
 		 * Constructor
 		 */ 
@@ -37,12 +54,12 @@ package com.suite75.quake1.io.mdl
 			
 			parseHeader(data);
 			parseSkins(data);
-			parseVertices(data);
+			parseTexCoords(data);
 			parseTriangles(data);
 			parseFrames(data);
 			
 			trace("#skins: " + this.skins.length);
-			trace("#vertices: " + this.vertices.length);
+			trace("#texcoords: " + this.texcoords.length);
 			trace("#triangles: " + this.triangles.length);
 			trace("#frames: " + this.frames.length);
 			
@@ -143,20 +160,20 @@ package com.suite75.quake1.io.mdl
 		}
 		
 		/**
-		 * Parse vertices
+		 * Parse texcoords
 		 * 
 		 * @param	data
 		 */ 
-		private function parseVertices(data:ByteArray):void
+		private function parseTexCoords(data:ByteArray):void
 		{
-			this.vertices = new Array();
+			this.texcoords = new Array();
 			for(var i:int = 0; i < this.header.numverts; i++)
 			{
-				var vertex:MDLVertex = new MDLVertex();
-				vertex.onseam = data.readInt();
-				vertex.s = data.readInt();
-				vertex.t = data.readInt();
-				this.vertices.push(vertex);
+				var texcoord:MDLTexCoord = new MDLTexCoord();
+				texcoord.onseam = data.readInt();
+				texcoord.s = data.readInt();
+				texcoord.t = data.readInt();
+				this.texcoords.push(texcoord);
 			}
 		}
 		
@@ -172,10 +189,10 @@ package com.suite75.quake1.io.mdl
 			{
 				var triangle:MDLTriangle = new MDLTriangle();
 				triangle.facesfront = data.readInt();
-				triangle.vertices = new Array();
-				triangle.vertices.push(data.readInt());
-				triangle.vertices.push(data.readInt());
-				triangle.vertices.push(data.readInt());
+				triangle.vertex = new Array();
+				triangle.vertex.push(data.readInt());
+				triangle.vertex.push(data.readInt());
+				triangle.vertex.push(data.readInt());
 				this.triangles.push(triangle);
 			}
 		}
@@ -278,88 +295,5 @@ package com.suite75.quake1.io.mdl
 			values.push(data.readFloat());
 			return values;
 		}
-		
-		private var header:MDLHeader;
-		private var skins:Array;
-		private var vertices:Array;
-		private var triangles:Array;
-		private var frames:Array;
 	}
-}
-
-class MDLHeader
-{
-	public var id:int;            		// 0x4F504449 = "IDPO" for IDPOLYGON
-	public var version:int;            	// Version = 6
-	public var scale:Array;       		// Model scale factors.
-	public var origin:Array;      		// Model origin.
-	public var radius:Number;         	// Model bounding radius.
-	public var offsets:Array;     		// Eye position (useless?)
-	public var numskins:int;       		// the number of skin textures
-	public var skinwidth:int;           // Width of skin texture
-	                               		//           must be multiple of 8
-	public var skinheight:int;          // Height of skin texture
-	                               		//           must be multiple of 8
-	public var numverts:int;            // Number of vertices
-	public var numtris:int;             // Number of triangles surfaces
-	public var numframes:int;           // Number of frames
-	public var synctype:int;            // 0= synchron, 1= random
-	public var flags:int;               // 0 (see Alias models)
-	public var size:Number;             // average size of triangles
-}
-
-class MDLSkin
-{
-	public var group:int;		// 0
-	public var data:Array;		// [skinwidth*skinheight] the skin picture
-	public function MDLSkin(){}
-}
-
-class MDLSkinGroup extends MDLSkin
-{
-	public var nb:int;			// number of pictures in group
-	public var time:Array;		// float time[nb]; time values, for each picture
-	public function MDLSkinGroup(){}
-}
-
-class MDLVertex
-{
-	public var onseam:int;
-	public var s:int;
-	public var t:int;
-}
-
-class MDLTriangle
-{
-	public var facesfront:int;
-	public var vertices:Array;
-}
-
-class MDLFrameVertex
-{
-	public var packedposition:Array;	// 3 bytes - X,Y,Z coordinate, packed on 0-255
-	public var lightnormalindex:int;	// 1 byte  - index of the vertex normal
-}
-
-class MDLSimpleFrame
-{
-	public var min:MDLFrameVertex;
-	public var max:MDLFrameVertex;
-	public var name:String;		// [16]
-	public var vertices:Array;
-}
-
-class MDLFrame
-{
-	public var type:int;				// value = 0
-	public var frame:MDLSimpleFrame;	// a single frame definition
-}
-
-class MDLFrameGroup
-{
-	public var type:int;				// value != 0
-	public var min:MDLFrameVertex;
-	public var max:MDLFrameVertex;
-	public var time:Array;
-	public var frames:Array;
 }
