@@ -35,7 +35,7 @@ package com.suite75.quake1.io
 		public var num_edges:uint;         	// [ushort] number of consecutive edges (in the face edge array)
 		public var texture_info:uint;      	// [ushort] index of the texture info structure	
 		public var lightmap_styles:Array; 	// [ubyte][4] styles (bit flags) for the lightmaps
-		public var lightmap_offset:uint;   	// [uint] offset of the lightmap (in bytes) in the lightmap lump
+		public var lightmap_offset:int;   	// [uint] offset of the lightmap (in bytes) in the lightmap lump
 		
 		public var min_s:Number;
 		public var min_t:Number;
@@ -66,7 +66,7 @@ package com.suite75.quake1.io
 			this.lightmap_styles[1] = pData.readUnsignedByte(); // 14
 			this.lightmap_styles[2] = pData.readUnsignedByte(); // 15
 			this.lightmap_styles[3] = pData.readUnsignedByte(); // 16
-			this.lightmap_offset = pData.readUnsignedInt();  // 20
+			this.lightmap_offset = pData.readInt();  // 20
 		}
 	}
 }

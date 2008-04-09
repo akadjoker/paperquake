@@ -183,6 +183,11 @@ package com.suite75.papervision3d.quake1
 					material = _bitmapMaterials[texInfo.miptex];
 				}
 				
+				if(surface.lightmap_offset >= 0)
+				{
+					
+				}
+				
 				// fix uvs
 				fixUV(surface, uvs);
 				
@@ -383,6 +388,32 @@ package com.suite75.papervision3d.quake1
 		}
 		
 		/**
+         * Create a bounding box for a triangle.
+         * 
+         * @param	triangle
+         */
+        private function faceBoundingBox(triangle:Triangle3D):Object
+        {
+        	var bbox:Object = new Object();
+        	bbox.min = new Number3D(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+        	bbox.max = new Number3D(Number.MIN_VALUE, Number.MIN_VALUE, Number.MIN_VALUE);
+  			bbox.size = new Number3D();
+  			
+        	bbox.min.x = Math.min(Math.min(triangle.v0.x, triangle.v1.x), triangle.v2.x);
+        	bbox.min.y = Math.min(Math.min(triangle.v0.y, triangle.v1.y), triangle.v2.y);
+        	bbox.min.z = Math.min(Math.min(triangle.v0.z, triangle.v1.z), triangle.v2.z);
+        	bbox.max.x = Math.max(Math.max(triangle.v0.x, triangle.v1.x), triangle.v2.x);
+        	bbox.max.y = Math.max(Math.max(triangle.v0.y, triangle.v1.y), triangle.v2.y);
+        	bbox.max.z = Math.max(Math.max(triangle.v0.z, triangle.v1.z), triangle.v2.z);
+        	
+        	bbox.size.x = bbox.max.x - bbox.min.x;
+        	bbox.size.y = bbox.max.y - bbox.min.y;
+        	bbox.size.z = bbox.max.z - bbox.min.z;
+        	
+        	return bbox;
+        }
+        
+		/**
          * Fixes texture coordinates.
          * 
          * @param       face
@@ -415,6 +446,10 @@ package com.suite75.papervision3d.quake1
                 uv.v /= face.size_t;
                 
                 uv.v = 1 - uv.v;
+                
+                var tmp:Number = uv.u;
+                uv.u = uv.v;
+                uv.v = tmp;
             }
         }
         

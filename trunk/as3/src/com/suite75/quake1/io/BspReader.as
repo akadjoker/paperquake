@@ -54,6 +54,7 @@ package com.suite75.quake1.io
 		public var marksurfaces:Array;
 		public var leaves:Array;
 		public var entities:BspEntities;
+		public var lightmaps:Array;
 		
 		/**
 		 * Constructor.
@@ -86,6 +87,7 @@ package com.suite75.quake1.io
 			readLeaves( this.data );
 			readEntities( this.data );
 			readSurfEdges( this.data );
+			readLightMaps( this.data );
 			
 			trace( "#planes : " + this.planes.length );
 			trace( "#textures : " + this.textures.length );
@@ -99,6 +101,7 @@ package com.suite75.quake1.io
 			trace( "#clipnodes : " + this.clipnodes.length );
 			trace( "#marksurfaces : " + this.marksurfaces.length );
 			trace( "#leaves : " + this.leaves.length );
+			trace( "#lightmaps : " + this.lightmaps.length );
 			
 			dispatchEvent( new Event(Event.COMPLETE) );
 		}
@@ -205,6 +208,20 @@ package com.suite75.quake1.io
 				leaf.read( data );
 				this.leaves.push( leaf );
 			}
+		}
+		
+		/**
+		 * 
+		 * @param	data
+		 */
+		private function readLightMaps( data:ByteArray ):void
+		{
+			var lump:BspLump = this.header.lumps[BspLump.LUMP_LIGHTING];
+			data.position = lump.offset;
+			
+			this.lightmaps = new Array();
+			for( var i:int = 0; i < lump.length; i++ )
+				this.lightmaps.push(data.readUnsignedByte());
 		}
 		
 		/**
