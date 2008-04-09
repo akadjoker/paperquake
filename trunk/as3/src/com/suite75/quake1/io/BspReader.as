@@ -366,7 +366,7 @@ package com.suite75.quake1.io
 			
 			for(i = 0; i < numtex; i++)
 				offsets.push(data.readInt());
-			
+
 			for(i = 0; i < numtex; i++)
 			{
 				data.position = offsets[i] < 0 ? startOffset + 4 + (numtex*4) : startOffset + offsets[i];
