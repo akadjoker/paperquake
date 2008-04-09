@@ -304,6 +304,7 @@ package com.suite75.papervision3d.quake1
 		private function showVisibleLeaves(leafIndex:int):void
 		{
 			var leaf:BspLeaf = _reader.leaves[leafIndex];
+			var numleafs:int = _reader.leaves.length;
 			var visisz:Array = _reader.visibility;
 			var v:int = leaf.visofs;
 			var i:int, bit:int;
@@ -317,7 +318,7 @@ package com.suite75.papervision3d.quake1
 			
 			_leafMeshes[leafIndex].visible = true;
 			
-			for(i = 1; i < _reader.leaves.length; v++)
+			for(i = 1; i < numleafs; v++)
 			{
 				if(visisz[v] == 0)
 				{
@@ -328,7 +329,7 @@ package com.suite75.papervision3d.quake1
 				else
 				{
 					// tag 8 leaves if needed, examine bits right to left
-					for(bit = 1; bit < 0xff; bit = bit * 2, i++)
+					for(bit = 1; bit < 0xff && i < numleafs; bit = bit * 2, i++)
 					{
 						if(visisz[v] & bit)
 						{
