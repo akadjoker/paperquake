@@ -84,9 +84,11 @@ package com.suite75.papervision3d.quake1
 			this.renderer = new BasicRenderEngine();
 			this.scene = new Scene3D();
 			
-			this.camera = new FrustumCamera3D(this.viewport, 110, 1, 1000);	
+			this.camera = new FrustumCamera3D(this.viewport, 90, 1, 800);	
 			
 			_camPos = new Vertex3D();
+			
+			_createdFaces = new Dictionary(true);
 			
 			addEventListener(Event.ENTER_FRAME, onRenderTick);
 		}
@@ -141,6 +143,10 @@ package com.suite75.papervision3d.quake1
 				var material:MaterialObject3D;
 				var polygon:Array = new Array();
 				var uvs:Dictionary = new Dictionary(true);
+				
+				if(_createdFaces[ surface ])
+					continue;
+				_createdFaces[ surface ] = true;
 				
 				// get texture info	
 				var texInfo:BspTexInfo = this._reader.tex_info[surface.texture_info];
@@ -276,6 +282,9 @@ package com.suite75.papervision3d.quake1
 
 			trace("player is now in leaf #" + _curLeaf);
 			
+			if(!_curLeaf)
+				return;
+				
 			for(var i:int = 0; i < _reader.leaves.length; i++)
 			{
 				if(_leafMeshes[i])
@@ -302,7 +311,7 @@ package com.suite75.papervision3d.quake1
 			if(!_leafMeshes[leafIndex])
 				buildLeafMesh(leaf, leafIndex);
 			
-			var playerZ:Number = leaf.mins[2] + 70;
+			var playerZ:Number = leaf.mins[2] + 60;
 			
 			this.camera.z = playerZ;
 			
@@ -433,5 +442,7 @@ package com.suite75.papervision3d.quake1
 		private var _camPos:Vertex3D;
 		
 		private var _leafMeshes:Array;
+		
+		private var _createdFaces:Dictionary;
 	}
 }
