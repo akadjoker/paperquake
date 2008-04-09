@@ -139,7 +139,7 @@ package com.suite75.papervision3d.quake1
 			for(var i:int = 0; i < leaf.nummarksurfaces; i++ )
 			{
 				var faceIndex:int = _reader.marksurfaces[leaf.firstmarksurface + i];
-				var surface:BspFace = this._reader.faces[model.firstface + faceIndex];
+				var surface:BspFace = _reader.faces[model.firstface + faceIndex];
 				var material:MaterialObject3D;
 				var polygon:Array = new Array();
 				var uvs:Dictionary = new Dictionary(true);
@@ -180,7 +180,7 @@ package com.suite75.papervision3d.quake1
 					polygon.push(vertex);
 					
 					// setup the polygon's material
-					material = _bitmapMaterials[surface.texture_info];
+					material = _bitmapMaterials[texInfo.miptex];
 				}
 				
 				// fix uvs
