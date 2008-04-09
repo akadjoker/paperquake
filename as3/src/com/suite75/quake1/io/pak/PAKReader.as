@@ -43,8 +43,10 @@ package com.suite75.quake1.io.pak
 				
 			var ba:ByteArray = new ByteArray();
 			
-			//_data.position = entry.offset;
+			_data.position = 0;
 			ba.writeBytes(_data, entry.offset, entry.length);
+			//ba.endian = Endian.LITTLE_ENDIAN;
+			//ba.position = 0;
 			return ba;
 		}
 		

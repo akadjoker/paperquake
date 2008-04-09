@@ -29,7 +29,6 @@ package com.suite75.papervision3d.quake1
 	
 	import flash.display.Sprite;
 	import flash.events.*;
-	import flash.utils.ByteArray;
 	import flash.utils.Dictionary;
 	
 	import org.papervision3d.Papervision3D;
@@ -47,27 +46,32 @@ package com.suite75.papervision3d.quake1
 	
 	public class QuakeEngine extends Sprite
 	{
+		/** Papervision scene. */
 		public var scene:Scene3D;
 		
+		/** Papervision camera. */
 		public var camera:FrustumCamera3D;
 		
+		/** Papervision viewport */
 		public var viewport:Viewport3D;
 		
+		/** Papervision renderer */
 		public var renderer:BasicRenderEngine
 		
+		/** The Quake BSP map. */
 		public var map:TriangleMesh3D;
 		
 		/**
-		 * 
-		 * @param	name
-		 * @param	geometry
-		 * @param	initObject
+		 * Constructor.
 		 */
 		public function QuakeEngine()
 		{
 			init();
 		}
 		
+		/**
+		 * Initialize.
+		 */ 
 		protected function init():void
 		{
 			Papervision3D.log( "" );
@@ -80,21 +84,129 @@ package com.suite75.papervision3d.quake1
 			this.renderer = new BasicRenderEngine();
 			this.scene = new Scene3D();
 			
-			this.camera = new FrustumCamera3D(this.viewport, 90, 1, 10000);	
+			this.camera = new FrustumCamera3D(this.viewport, 110, 1, 1000);	
 			
 			_camPos = new Vertex3D();
 			
-			addEventListener(Event.ENTER_FRAME, loop3D);
+			addEventListener(Event.ENTER_FRAME, onRenderTick);
 		}
 		
 		/**
+		 * Loads a BSP map from disk.
 		 * 
 		 * @param	mapName
 		 */
 		public function loadMap(mapName:String):void
 		{
-			_reader = new BspReader( mapName );
-			_reader.addEventListener( Event.COMPLETE, readerCompleteHandler );
+			_reader = new BspReader();
+			_reader.addEventListener(Event.COMPLETE, onBspComplete);
+			_reader.addEventListener(ProgressEvent.PROGRESS, onBspProgress);
+			_reader.load(mapName);
+		}
+		
+		/**
+		 * 
+		 * @param	event
+		 */
+		public function onRenderTick( event:Event ):void
+		{
+			if(this.map)
+			{
+				_camPos.x = this.camera.x;
+				_camPos.y = this.camera.y;
+				_camPos.z = this.camera.z;
+				
+				showVisibleMeshes();
+			}
+			this.renderer.renderScene(scene, camera, viewport);
+		}
+		
+		/**
+		 * Build a mesh for a leaf. 
+		 * 
+		 * @param	leaf
+		 * @param	index
+		 * 
+		 * @return	The created mesh. @see org.papervision3d.core.geom.TriangleMesh3D
+		 */ 
+		private function buildLeafMesh(leaf:BspLeaf, index:int):TriangleMesh3D
+		{
+			var mesh:TriangleMesh3D = new TriangleMesh3D(null, [], [], "leaf_" + index);
+			var model:BspModel = this._reader.models[0] as BspModel;
+			
+			for(var i:int = 0; i < leaf.nummarksurfaces; i++ )
+			{
+				var faceIndex:int = _reader.marksurfaces[leaf.firstmarksurface + i];
+				var surface:BspFace = this._reader.faces[model.firstface + faceIndex];
+				var material:MaterialObject3D;
+				var polygon:Array = new Array();
+				var uvs:Dictionary = new Dictionary(true);
+				
+				// get texture info	
+				var texInfo:BspTexInfo = this._reader.tex_info[surface.texture_info];
+				
+				// texture axis
+				var u:Number3D = new Number3D(texInfo.u_axis[0], texInfo.u_axis[1], texInfo.u_axis[2]);
+				var v:Number3D = new Number3D(texInfo.v_axis[0], texInfo.v_axis[1], texInfo.v_axis[2]);
+				
+				// loop over the edges
+				for(var j:int = 0; j < surface.num_edges; j++)
+				{
+					var idx:int = this._reader.surfedges[surface.first_edge + j];
+					
+					var edge_idx:int = idx < 0 ? -idx : idx;
+					var edge:BspEdge = this._reader.edges[edge_idx];
+					var coord:int = idx < 0 ? edge.endvertex : edge.startvertex;
+					
+					// get the Quake-vertex
+					var pt:Array = this._reader.vertices[coord];
+
+					// create PV3D vertex
+					var vertex:Vertex3D = new Vertex3D(pt[0], pt[1], pt[2]);
+
+					// create PV3D texcoord
+					uvs[vertex] = new NumberUV(
+						Number3D.dot(vertex.toNumber3D(), u) + texInfo.u_offset,
+						-Number3D.dot(vertex.toNumber3D(), v) + texInfo.v_offset
+					);
+					
+					// save vertex for triangulation
+					polygon.push(vertex);
+					
+					// setup the polygon's material
+					material = _bitmapMaterials[surface.texture_info];
+				}
+				
+				// fix uvs
+				fixUV(surface, uvs);
+				
+				// need to triangulate...
+				var triangles:Array = triangulate(polygon);
+				
+				for(var k:int = 0; k < triangles.length; k++ )
+				{
+					var p0:Vertex3D = triangles[k][0] as Vertex3D;
+					var p1:Vertex3D = triangles[k][1] as Vertex3D;
+					var p2:Vertex3D = triangles[k][2] as Vertex3D;
+					
+					mesh.geometry.vertices.push(p0, p1, p2);
+					 
+					var t0:NumberUV = uvs[ p0 ];
+					var t1:NumberUV = uvs[ p1 ];
+					var t2:NumberUV = uvs[ p2 ];
+					
+					var triangle:Triangle3D = new Triangle3D(mesh, [p0, p1, p2], material, [t0, t1, t2]);
+					
+					mesh.geometry.faces.push(triangle);
+				}
+			}
+			
+			mesh.mergeVertices();
+			mesh.geometry.ready = true;
+			
+			_leafMeshes[ index ] = this.map.addChild(mesh);
+			
+			return mesh;
 		}
 		
 		/**
@@ -129,37 +241,21 @@ package com.suite75.papervision3d.quake1
 		}
 		
 		/**
+		 * Finds the leaf containing the the player.
 		 * 
-		 * @param	event
-		 */
-		public function loop3D( event:Event ):void
-		{
-			if(this.map)
-			{
-				_camPos.x = this.camera.x;
-				_camPos.y = this.camera.y;
-				_camPos.z = this.camera.z;
-				
-				makeVisible();
-			}
-			this.renderer.renderScene(scene, camera, viewport);
-		}
-		
-		/**
+		 * @param	playerPosition
 		 * 
-		 * @param	point
-		 * @return
+		 * @return	Index into the leaves Array.
 		 */
-		private function findLeaf(point:Vertex3D):int
+		private function findLeaf(playerPosition:Vertex3D):int
 		{
 			var idx:int = BspModel( this._reader.models[0] ).headnode[0];
-			var pt:Number3D = new Number3D( point.x, point.y, point.z );
-			
+			var pt:Number3D = playerPosition.toNumber3D();	
 			while( idx >= 0 )
 			{
 				var node:BspNode = this._reader.nodes[idx] as BspNode;
 				var plane:BspPlane = this._reader.planes[node.planenum];	
-				var normal:Number3D = new Number3D( plane.a, plane.b, plane.c );
+				var normal:Number3D = new Number3D(plane.a, plane.b, plane.c);
 				var dot:Number = Number3D.dot(normal, pt) - plane.d;
 				idx = dot >= 0 ? node.children[0] : node.children[1];
 			}
@@ -167,200 +263,117 @@ package com.suite75.papervision3d.quake1
 		}
 		
 		/**
-		 * 
+		 * Shows or hides meshes depending on current player (=camera) position.
 		 */
-		private function decompressVis( leaf:BspLeaf ):Array
+		private function showVisibleMeshes():void
 		{
-			var decompressed:Array = new Array();
+			var idx:int = findLeaf(_camPos);
 			
-			var lump:BspLump = this._reader.header.lumps[BspLump.LUMP_VISIBILITY] as BspLump;
-			var num:int = (this._reader.leaves.length+7) >> 3;
-		
-			if( leaf.visofs < 0 )
-			{
-				while( num )
-				{
-					decompressed.push( 0xff );
-					num--;
-				}
-			}
-			else
-			{
-				var pos:uint = lump.offset + leaf.visofs;
-				var data:ByteArray = this._reader.data;
-				
-				var out:uint = 0;
-				var cnt:uint = 0;
-				
-				do
-				{
-					if( data[pos] )
-					{
-						out = data[pos++];
-						decompressed.push( out );
-						continue;
-					}
-					
-					var c:uint = data[pos+1];
-					pos += 2;
-					while( c )
-					{
-						out = 0;
-						decompressed.push( out );
-						c--;
-					}
-					
-				} while( decompressed.length < num );
-			}
-			return decompressed;
-		}
-		
-		/**
-		 * 
-		 */
-		private function makeVisible():void
-		{
-			var idx:int = findLeaf( _camPos );
 			if(idx == _curLeaf)
 				return;
+				
 			_curLeaf = idx;
-			var leaf:BspLeaf = this._reader.leaves[_curLeaf];
+
+			trace("player is now in leaf #" + _curLeaf);
 			
-			trace( "mins:" + leaf.mins );
-			trace( "maxs:" + leaf.maxs );
-			trace( "visofs:" + leaf.visofs );
-			trace( "contents:" + _curLeaf );
-			
-			var lump:BspLump = this._reader.header.lumps[BspLump.LUMP_VISIBILITY] as BspLump;
-			var num:int = (this._reader.leaves.length+7) >> 3;
-			
-			trace( "vis => len:" + lump.length + " num:" + num );
-			
-			var src:uint = lump.offset + leaf.visofs;
-			var dest:uint = 0;
-			
-			try
+			for(var i:int = 0; i < _reader.leaves.length; i++)
 			{
-				var visinfo:Array = decompressVis( leaf );
-				trace( "visinfo: " + visinfo.length );
-				makeWorldFaces( visinfo );
+				if(_leafMeshes[i])
+					_leafMeshes[i].visible = false;
 			}
-			catch( e:Error )
-			{
-				trace( "ERROR in makeWorldFaces " + e.toString() + e.getStackTrace() );
-			}
+			
+			showVisibleLeaves(_curLeaf);
 		}
 		
-		private function makeWorldFaces( visinfo:Array ):void
-		{
-			var i:int, j:int, k:int;
-			var vis_byte:int;
-			var vis_mask:int;
-			var allreadyViz:Object = new Object();
-			
-			this.map.geometry.vertices = new Array()
-			this.map.geometry.faces = new Array();
-			
-			var model:BspModel = this._reader.models[0] as BspModel;
-			
-			var numleaves:uint = this._reader.leaves.length;
-			var marked:Object = new Object();
-			
-			for( i = 0; i < numleaves; i++ )
-			{
-				var leaf:BspLeaf = this._reader.leaves[i];
-				
-				vis_byte = visinfo[i >> 3];
-				vis_mask = 1 << (i & 7);
-				
-				if( vis_byte & vis_mask )
-				{
-					for( j = 0; j < leaf.nummarksurfaces; j++ )
-						marked[leaf.firstmarksurface + j] = true;
-				}
-			}
-			
-			var surf:BspFace = this._reader.faces[model.firstface];
-			var numsurfaces:uint = model.numfaces;
-			
-			// loop over all polygons
-			for(i = 0; i < numsurfaces; i++)
-			{
-				if( !marked[i] ) continue;
-				
-				var material:MaterialObject3D;
-				var polygon:Array = new Array();
-				var uvs:Dictionary = new Dictionary(true);
-				
-				// get texture info	
-				var texInfo:BspTexInfo = this._reader.tex_info[surf.texture_info];
-				
-				// texture axis
-				var u:Number3D = new Number3D(texInfo.u_axis[0], texInfo.u_axis[1], texInfo.u_axis[2]);
-				var v:Number3D = new Number3D(texInfo.v_axis[0], texInfo.v_axis[1], texInfo.v_axis[2]);
-					
-				// loop over the edges
-				for( j = 0; j < surf.num_edges; j++ )
-				{
-					var idx:int = this._reader.surfedges[surf.first_edge + j];
-					
-					var edge_idx:int = idx < 0 ? -idx : idx;
-					var edge:BspEdge = this._reader.edges[edge_idx];
-					var coord:int = idx < 0 ? edge.endvertex : edge.startvertex;
-					
-					// get the Quake-vertex
-					var pt:Array = this._reader.vertices[coord];
-
-					// create PV3D vertex
-					var vertex:Vertex3D = new Vertex3D(pt[0], pt[1], pt[2]);
-
-					// create PV3D texcoord
-					uvs[vertex] = new NumberUV(
-						Number3D.dot(vertex.toNumber3D(), u) + texInfo.u_offset,
-						-Number3D.dot(vertex.toNumber3D(), v) + texInfo.v_offset
-					);
-					
-					// save vertex for triangulation
-					polygon.push(vertex);
-					
-					// setup the polygon's material
-					material = _bitmapMaterials[surf.texture_info];
-				}
-				
-				// fix uvs
-				fixUV(surf, uvs);
-				
-				// need to triangulate...
-				var triangles:Array = triangulate(polygon);
-				
-				for( k = 0; k < triangles.length; k++ )
-				{
-					var p0:Vertex3D = triangles[k][0] as Vertex3D;
-					var p1:Vertex3D = triangles[k][1] as Vertex3D;
-					var p2:Vertex3D = triangles[k][2] as Vertex3D;
-					
-					map.geometry.vertices.push(p0, p1, p2);
-					 
-					var t0:NumberUV = uvs[ p0 ];
-					var t1:NumberUV = uvs[ p1 ];
-					var t2:NumberUV = uvs[ p2 ];
-					
-					var triangle:Triangle3D = new Triangle3D(this.map, [p0, p1, p2], material, [t0, t1, t2]);
-					
-					map.geometry.faces.push(triangle);
-				}
-				
-				// next polygon
-				surf = this._reader.faces[model.firstface + i];
-			}
-			
-			map.mergeVertices();
-			map.geometry.ready = true;
-			
-			Papervision3D.log( "created mesh v:" + map.geometry.vertices.length + " f:" + map.geometry.faces.length );
-		}
-	
 		/**
+		 * Renders a leaf, and all leaves that are visible 
+		 * from that leaf. Uses Quake's Possible Visible Set (PVS).
+		 * @see com.suite75.quake1.io.BspReader#visibility
+		 * 
+		 * @param	leafIndex
+		 */
+		private function showVisibleLeaves(leafIndex:int):void
+		{
+			var leaf:BspLeaf = _reader.leaves[leafIndex];
+			var visisz:Array = _reader.visibility;
+			var v:int = leaf.visofs;
+			var i:int, bit:int;
+			
+			if(!_leafMeshes[leafIndex])
+				buildLeafMesh(leaf, leafIndex);
+			
+			var playerZ:Number = leaf.mins[2] + 70;
+			
+			this.camera.z = playerZ;
+			
+			_leafMeshes[leafIndex].visible = true;
+			
+			for(i = 1; i < _reader.leaves.length; v++)
+			{
+				if(visisz[v] == 0)
+				{
+					// value 0, leaves invisible: skip some leaves
+					i += 8 * visisz[v + 1];    	
+					v++;
+				}
+				else
+				{
+					// tag 8 leaves if needed, examine bits right to left
+					for(bit = 1; bit < 0xff; bit = bit * 2, i++)
+					{
+						if(visisz[v] & bit)
+						{
+							_reader.leaves[i].visible = true;
+							if(!_leafMeshes[i])
+								buildLeafMesh(_reader.leaves[i], i);
+							_leafMeshes[i].visible = true;
+						}
+					}
+				}
+			}
+		}
+        
+		/**
+		 * Fired when the BSP map is loaded.
+		 * 
+		 * @param	event
+		 */
+		protected function onBspComplete( event:Event ):void
+		{
+			// allocate space for meshes, a mesh for each leaf.
+			_leafMeshes = new Array(_reader.leaves.length);
+			
+			var ent:BspEntity = this._reader.entities.findEntityByClassName("info_player_start");
+			
+			_camPos = new Vertex3D(ent.origin[0], ent.origin[1], ent.origin[2]);
+			
+			camera.x = _camPos.x;
+			camera.y = _camPos.y;
+			camera.z = _camPos.z;
+			camera.rotationX = -90;
+			
+			trace( "info_player_start: " + _camPos.x + "," + _camPos.y + "," + _camPos.z  );
+			
+			this.map = new TriangleMesh3D(null, [], [], "q1-map");
+			
+			buildMaterials(this.map);
+			
+			this.scene.addChild(map);
+			
+			this.camera.yaw(0);
+		}
+		
+		/**
+		 * Fired on BSP map loading progress.
+		 * 
+		 * @param	event
+		 */
+		protected function onBspProgress( event:ProgressEvent ):void
+		{
+		}
+		
+		/**
+         * Fixes texture coordinates.
          * 
          * @param       face
          * @param       uvs
@@ -396,49 +409,18 @@ package com.suite75.papervision3d.quake1
         }
         
 		/**
+		 * Triangulates a polygon.
 		 * 
-		 * @param	event
-		 */
-		private function readerCompleteHandler( event:Event ):void
-		{
-			trace( "COMPLETE" );
-			
-			var ent:BspEntity = this._reader.entities.findEntityByClassName("info_player_start");
-			
-			var camPos:Vertex3D = new Vertex3D( ent.origin[0], ent.origin[1], ent.origin[2] );
-			
-			camera.x = camPos.x;
-			camera.y = camPos.y;
-			camera.z = camPos.z;
-			camera.rotationX = -90;
-			
-			trace( "info_player_start: " + camPos.x + "," + camPos.y + "," + camPos.z  );
-			
-			this.map = new TriangleMesh3D(null, [], [], "q1-map");
-			
-			buildMaterials(this.map);
-			
-			
-			
-			this.scene.addChild(map);
-			
-			this.camera.yaw(0);
-		//	addEventListener(Event.ENTER_FRAME, loop3D);
-		}
-		
-		/**
+		 * @param	points	Array of Vertex3D or Number3D
 		 * 
-		 * @param	points
+		 * @return	Array of triangles, each triangle an Array of three points.
 		 */
-		private function triangulate( points:Array ):Array
+		private function triangulate(points:Array):Array
 		{
 			var result:Array = new Array();
-			result.push( [points[0], points[1], points[2]] );
+			result.push([points[0], points[1], points[2]]);
 			for( var i:int = 2; i < points.length; i++ )
-			{
-				var j:int = (i+1) % points.length;
-				result.push( [points[0], points[i], points[j]] );
-			}
+				result.push( [points[0], points[i], points[(i+1) % points.length]] );
 			return result;			
 		}
 		
@@ -449,5 +431,7 @@ package com.suite75.papervision3d.quake1
 		private var _bitmapMaterials:Array;
 		
 		private var _camPos:Vertex3D;
+		
+		private var _leafMeshes:Array;
 	}
 }

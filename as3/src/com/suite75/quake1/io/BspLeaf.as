@@ -50,6 +50,8 @@ package com.suite75.quake1.io
 		public var nummarksurfaces:uint;	// 24 [ushort]
 		public var ambient_level:Array;		// 28 [byte][4]
 		
+		public var visible:Boolean = false;
+		
 		/**
 		 * 
 		 */

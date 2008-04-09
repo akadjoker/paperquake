@@ -35,10 +35,8 @@ package com.suite75.quake1.io
 	/**
 	 * 
 	 */
-	public class BspReader extends EventDispatcher
+	public class BspReader extends AbstractReader
 	{
-		public var filename:String;
-		
 		public var data:ByteArray;
 		
 		public var header:BspHeader;
@@ -58,41 +56,17 @@ package com.suite75.quake1.io
 		public var entities:BspEntities;
 		
 		/**
-		 * 
-		 * @param	filename
+		 * Constructor.
 		 */
-		public function BspReader( filename:String )
+		public function BspReader()
 		{
-			this.filename = filename;
-			
-			loadBsp();
 		}
 		
-		/**
-		 * 
-		 */
-		private function loadBsp():void
-		{
-			trace( "" );
-			trace( "loading " + this.filename );
-			
-			this._loader = new URLLoader();
-			this._loader.dataFormat = URLLoaderDataFormat.BINARY;
-			this._loader.addEventListener( Event.COMPLETE, completeHandler );
-			this._loader.addEventListener( IOErrorEvent.IO_ERROR, errorHandler );
-			this._loader.addEventListener( ProgressEvent.PROGRESS, progressHandler );
-			this._loader.load( new URLRequest( this.filename ) );
-		}
-		
-		/**
-		 * 
-		 * @param	event
-		 */
-        private function completeHandler(event:Event):void 
+		protected override function parse(data:ByteArray):void
 		{
 			trace( "complete" );
 			
-			this.data = this._loader.data as ByteArray;
+			this.data = data;
 			this.data.endian = Endian.LITTLE_ENDIAN;
 			
 			this.header = new BspHeader();
@@ -133,18 +107,9 @@ package com.suite75.quake1.io
 		 * 
 		 * @param	event
 		 */
-        private function errorHandler(event:IOErrorEvent):void 
+		protected override function onLoadProgress(event:ProgressEvent):void
 		{
-			trace( "error:" + event.text );
-		}
-		
-		/**
-		 * 
-		 * @param	event
-		 */
-		private function progressHandler(event:ProgressEvent):void
-		{
-			//trace( "loading " + event.bytesLoaded + " of " + event.bytesTotal );
+			dispatchEvent(event);
 		}
 
 		/**
