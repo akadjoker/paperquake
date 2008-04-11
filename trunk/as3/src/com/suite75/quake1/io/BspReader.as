@@ -88,7 +88,7 @@ package com.suite75.quake1.io
 			readEntities( this.data );
 			readSurfEdges( this.data );
 			readLightMaps( this.data );
-			
+
 			trace( "#planes : " + this.planes.length );
 			trace( "#textures : " + this.textures.length );
 			trace( "#tex_info : " + this.tex_info.length );
@@ -101,7 +101,7 @@ package com.suite75.quake1.io
 			trace( "#clipnodes : " + this.clipnodes.length );
 			trace( "#marksurfaces : " + this.marksurfaces.length );
 			trace( "#leaves : " + this.leaves.length );
-			trace( "#lightmaps : " + this.lightmaps.length );
+			//trace( "#lightmaps : " + this.lightmaps.length );
 			
 			dispatchEvent( new Event(Event.COMPLETE) );
 		}
@@ -406,9 +406,9 @@ package com.suite75.quake1.io
 				
 				texture.bitmap = new BitmapData(texture.width, texture.height, true, 0xff000000);
 				
-				for(var x:int = 0; x < texture.width; x++)
+				for(var y:int = 0; y < texture.height; y++)
 				{
-					for(var y:int = 0; y < texture.height; y++)
+					for(var x:int = 0; x < texture.width; x++)
 					{
 						var index:uint = data.readUnsignedByte();
 						

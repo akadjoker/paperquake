@@ -27,8 +27,11 @@ package com.suite75.papervision3d.quake1
 {
 	import com.suite75.quake1.io.*;
 	
+	import flash.display.BitmapData;
+	import flash.display.BlendMode;
 	import flash.display.Sprite;
 	import flash.events.*;
+	import flash.geom.Matrix;
 	import flash.utils.Dictionary;
 	
 	import org.papervision3d.Papervision3D;
@@ -38,6 +41,7 @@ package com.suite75.papervision3d.quake1
 	import org.papervision3d.core.math.*;
 	import org.papervision3d.core.proto.MaterialObject3D;
 	import org.papervision3d.materials.BitmapMaterial;
+	import org.papervision3d.materials.special.CompositeMaterial;
 	import org.papervision3d.materials.utils.MaterialsList;
 	import org.papervision3d.objects.DisplayObject3D;
 	import org.papervision3d.render.BasicRenderEngine;
@@ -84,7 +88,7 @@ package com.suite75.papervision3d.quake1
 			this.renderer = new BasicRenderEngine();
 			this.scene = new Scene3D();
 			
-			this.camera = new FrustumCamera3D(this.viewport, 90, 1, 800);	
+			this.camera = new FrustumCamera3D(this.viewport, 90, 1, 8000);	
 			
 			_camPos = new Vertex3D();
 			
@@ -144,8 +148,9 @@ package com.suite75.papervision3d.quake1
 				var polygon:Array = new Array();
 				var uvs:Dictionary = new Dictionary(true);
 				
+				// prevent creation of duplicate triangles!
 				if(_createdFaces[ surface ])
-					continue;
+					continue;	
 				_createdFaces[ surface ] = true;
 				
 				// get texture info	
@@ -171,21 +176,13 @@ package com.suite75.papervision3d.quake1
 					var vertex:Vertex3D = new Vertex3D(pt[0], pt[1], pt[2]);
 
 					// create PV3D texcoord
-					uvs[vertex] = new NumberUV(
-						Number3D.dot(vertex.toNumber3D(), u) + texInfo.u_offset,
-						-Number3D.dot(vertex.toNumber3D(), v) + texInfo.v_offset
-					);
+					uvs[vertex] = buildTexCoord(vertex, texInfo);
 					
 					// save vertex for triangulation
 					polygon.push(vertex);
 					
 					// setup the polygon's material
 					material = _bitmapMaterials[texInfo.miptex];
-				}
-				
-				if(surface.lightmap_offset >= 0)
-				{
-					
 				}
 				
 				// fix uvs
@@ -205,7 +202,20 @@ package com.suite75.papervision3d.quake1
 					var t0:NumberUV = uvs[ p0 ];
 					var t1:NumberUV = uvs[ p1 ];
 					var t2:NumberUV = uvs[ p2 ];
+					/*
+					var bbox:Object = faceBoundingBox(p0, p1, p2);
 					
+					if(surface.lightmap_offset >= 0 && material && material.bitmap)
+					{
+						// got a lightmap!
+						//var cmat:CompositeMaterial = new CompositeMaterial();
+						//cmat.addMaterial(new BitmapMaterial(material.bitmap.clone()));
+						//cmat.addMaterial(new BitmapMaterial(buildLightMap(surface, bbox, material.bitmap)));
+						var bm:BitmapData = buildLightMap(surface, bbox, material.bitmap);
+						
+						material = new BitmapMaterial(bm);
+					}
+					*/
 					var triangle:Triangle3D = new Triangle3D(mesh, [p0, p1, p2], material, [t0, t1, t2]);
 					
 					mesh.geometry.faces.push(triangle);
@@ -218,6 +228,44 @@ package com.suite75.papervision3d.quake1
 			_leafMeshes[ index ] = this.map.addChild(mesh);
 			
 			return mesh;
+		}
+		
+		private function buildLightMap(surface:BspFace, bbox:Object, bitmap:BitmapData):BitmapData
+		{
+			var plane:BspPlane = _reader.planes[ surface.plane ];
+			
+			var sizes:Array = [];
+			if(plane.type == 0 || plane.type == 3)
+				sizes = [bbox.size.y, bbox.size.z];
+			else if(plane.type == 1 || plane.type == 4)
+				sizes = [bbox.size.x, bbox.size.z];
+			else
+				sizes = [bbox.size.x, bbox.size.y];
+					
+			var lightmaps:Array = _reader.lightmaps;
+			var i:int = surface.lightmap_offset;
+			var w:int = (sizes[0] >> 4) + 1;
+			var h:int = (sizes[1] >> 4) + 1;
+			var lightmap:BitmapData = new BitmapData(w, h, true, 0xff000000);
+			
+			for(var y:int = 0; y < h; y++)
+			{
+				for(var x:int = 0; x < w; x++)
+				{
+					var c:int = lightmaps[i];
+					var color:uint = c << 24 | c << 16 | c << 8 | c;
+					lightmap.setPixel32(x, y, color);
+				}
+			}
+			
+			var bm:BitmapData = bitmap.clone();
+			var matrix:Matrix = new Matrix();
+			
+			matrix.scale(16, 16);
+		
+			bm.draw(lightmap, matrix, null, BlendMode.OVERLAY);
+			
+			return bm;
 		}
 		
 		/**
@@ -252,6 +300,50 @@ package com.suite75.papervision3d.quake1
 		}
 		
 		/**
+		 * 
+		 * @param	vertex
+		 * @param	tex		Texture info. @see com.suite75.quake1.io.BspTexInfo
+		 */ 
+		private function buildTexCoord(vertex:Vertex3D, tex:BspTexInfo):NumberUV
+		{
+			var n:Number3D = vertex.toNumber3D(),
+				u:Number3D = new Number3D(tex.u_axis[0], tex.u_axis[1], tex.u_axis[2]),
+				v:Number3D = new Number3D(tex.v_axis[0], tex.v_axis[1], tex.v_axis[2]),
+				uv:NumberUV = new NumberUV();
+			
+			uv.u = Number3D.dot(n, u) + tex.u_offset;
+			uv.v = -(Number3D.dot(n, v) + tex.v_offset);
+			
+			return uv;
+		}
+		
+		/**
+		 * 
+		 */ 
+		private function calcSurfaceExtents(face:BspFace, uvs:Array):void
+		{
+			// get texture info	
+			var tex:BspTexInfo = this._reader.tex_info[ face.texture_info ],
+				ns:Number3D = new Number3D(tex.u_axis[0], tex.u_axis[1], tex.u_axis[2]),
+				nt:Number3D = new Number3D(tex.v_axis[0], tex.v_axis[1], tex.v_axis[2]),
+				uv:NumberUV;
+				
+			face.min_s = face.min_t = Number.MAX_VALUE;
+	        face.max_s = face.max_t = Number.MIN_VALUE;
+	            
+            for each(uv in uvs)
+            {
+                face.min_s = Math.min(face.min_s, uv.u);
+                face.min_t = Math.min(face.min_t, uv.v);
+                face.max_s = Math.max(face.max_s, uv.u);
+                face.max_t = Math.max(face.max_t, uv.v);
+            }
+            
+            face.size_s = face.max_s - face.min_s;
+            face.size_t = face.max_t - face.min_t;
+		}
+		
+		/**
 		 * Finds the leaf containing the the player.
 		 * 
 		 * @param	playerPosition
@@ -280,7 +372,7 @@ package com.suite75.papervision3d.quake1
 		{
 			var idx:int = findLeaf(_camPos);
 			
-			if(idx == _curLeaf)
+			if(idx == _curLeaf || !idx)
 				return;
 				
 			_curLeaf = idx;
@@ -392,19 +484,19 @@ package com.suite75.papervision3d.quake1
          * 
          * @param	triangle
          */
-        private function faceBoundingBox(triangle:Triangle3D):Object
+        private function faceBoundingBox(v0:Vertex3D, v1:Vertex3D, v2:Vertex3D):Object
         {
         	var bbox:Object = new Object();
         	bbox.min = new Number3D(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
         	bbox.max = new Number3D(Number.MIN_VALUE, Number.MIN_VALUE, Number.MIN_VALUE);
   			bbox.size = new Number3D();
   			
-        	bbox.min.x = Math.min(Math.min(triangle.v0.x, triangle.v1.x), triangle.v2.x);
-        	bbox.min.y = Math.min(Math.min(triangle.v0.y, triangle.v1.y), triangle.v2.y);
-        	bbox.min.z = Math.min(Math.min(triangle.v0.z, triangle.v1.z), triangle.v2.z);
-        	bbox.max.x = Math.max(Math.max(triangle.v0.x, triangle.v1.x), triangle.v2.x);
-        	bbox.max.y = Math.max(Math.max(triangle.v0.y, triangle.v1.y), triangle.v2.y);
-        	bbox.max.z = Math.max(Math.max(triangle.v0.z, triangle.v1.z), triangle.v2.z);
+        	bbox.min.x = Math.min(Math.min(v0.x, v1.x), v2.x);
+        	bbox.min.y = Math.min(Math.min(v0.y, v1.y), v2.y);
+        	bbox.min.z = Math.min(Math.min(v0.z, v1.z), v2.z);
+        	bbox.max.x = Math.max(Math.max(v0.x, v1.x), v2.x);
+        	bbox.max.y = Math.max(Math.max(v0.y, v1.y), v2.y);
+        	bbox.max.z = Math.max(Math.max(v0.z, v1.z), v2.z);
         	
         	bbox.size.x = bbox.max.x - bbox.min.x;
         	bbox.size.y = bbox.max.y - bbox.min.y;
@@ -445,11 +537,7 @@ package com.suite75.papervision3d.quake1
                 uv.u /= face.size_s;
                 uv.v /= face.size_t;
                 
-                uv.v = 1 - uv.v;
-                
-                var tmp:Number = uv.u;
-                uv.u = uv.v;
-                uv.v = tmp;
+               // uv.v = 1 - uv.v;
             }
         }
         

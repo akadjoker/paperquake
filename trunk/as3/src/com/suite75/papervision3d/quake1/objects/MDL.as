@@ -6,6 +6,9 @@ package com.suite75.papervision3d.quake1.objects
 	
 	import flash.display.BitmapData;
 	import flash.events.Event;
+	import flash.events.ProgressEvent;
+	import flash.events.TimerEvent;
+	import flash.utils.Timer;
 	
 	import org.papervision3d.Papervision3D;
 	import org.papervision3d.core.geom.TriangleMesh3D;
@@ -15,6 +18,7 @@ package com.suite75.papervision3d.quake1.objects
 	import org.papervision3d.core.math.NumberUV;
 	import org.papervision3d.core.proto.MaterialObject3D;
 	import org.papervision3d.core.render.data.RenderSessionData;
+	import org.papervision3d.events.FileLoadEvent;
 	import org.papervision3d.materials.BitmapMaterial;
 	import org.papervision3d.objects.DisplayObject3D;
 	
@@ -34,6 +38,9 @@ package com.suite75.papervision3d.quake1.objects
 		
 		/** */
 		public var frames:Array;
+		
+		/** */
+		public var filename:String;
 		
 		/**
 		 * Constructor.
@@ -58,10 +65,13 @@ package com.suite75.papervision3d.quake1.objects
 		public function load(asset:*, material:MaterialObject3D=null):void
 		{
 			_loadMaterial = material;
-			
+		
 			var mdl:MDLReader = new MDLReader();
 			mdl.addEventListener(Event.COMPLETE, onParseComplete);
+			
 			mdl.load(asset);
+			
+			this.filename = mdl.filename;
 		}
 		
 		/**
@@ -69,6 +79,9 @@ package com.suite75.papervision3d.quake1.objects
 		 */ 
 		public override function project(parent:DisplayObject3D, renderSessionData:RenderSessionData):Number
 		{
+			if(_queuedFrames.length)
+				return 0;
+				
 			if(this.frames && this.frames.length)
 			{
 				_curFrame = _curFrame < this.frames.length - 1 ? _curFrame + 1 : 0;
@@ -76,10 +89,6 @@ package com.suite75.papervision3d.quake1.objects
 				this.geometry = this.frames[_curFrame].geometry;
 			}
 			
-			if(_queuedFrames.length)
-			{
-				buildFrame(_mdl, _queuedFrames.shift() as MDLSimpleFrame);
-			}
 			return super.project(parent, renderSessionData);
 		}
 		
@@ -104,9 +113,11 @@ package com.suite75.papervision3d.quake1.objects
 			
 			this.geometry = this.frames[0].geometry;
 			this.geometry.ready = true;
-			this.rotationX = 90;
+			//this.rotationX = 90;
 			
 			_curFrame = 0;
+			
+			dispatchEvent(new FileLoadEvent(FileLoadEvent.LOAD_COMPLETE, this.filename));
 			
 			trace("MDL v:" + this.geometry.vertices.length + " f:" + this.geometry.faces.length);
 		}
@@ -129,6 +140,12 @@ package com.suite75.papervision3d.quake1.objects
 				else
 					buildFrame(mdl, frame);
 			}
+			
+			_totalFrames = _queuedFrames.length;
+			
+			var timer:Timer = new Timer(10, _totalFrames+1);
+			timer.addEventListener(TimerEvent.TIMER, parseNextFrame);
+			timer.start();
 		}
 		
 		/**
@@ -188,7 +205,7 @@ package com.suite75.papervision3d.quake1.objects
 				var dx:Number = -bbox.min.x-(bbox.size.x/2); 
 				var dy:Number = -bbox.min.y-(bbox.size.y/2); 
 				var dz:Number = -bbox.min.z-(bbox.size.z/2); 
-				tmpMesh.transformVertices(Matrix3D.translationMatrix(dx, dy, 0));
+				tmpMesh.transformVertices(Matrix3D.translationMatrix(dx, dy, dz));
 			}
 			
 			this.frames.push(tmpMesh);
@@ -219,6 +236,21 @@ package com.suite75.papervision3d.quake1.objects
 			return bitmap;	
 		}
 		
+		private function parseNextFrame(event:TimerEvent):void
+		{
+			if(_queuedFrames.length)
+			{
+				var cur:int = _totalFrames - _queuedFrames.length;
+				dispatchEvent(new ProgressEvent(ProgressEvent.PROGRESS, false, false, cur, _totalFrames));
+				
+				buildFrame(_mdl, _queuedFrames.shift() as MDLSimpleFrame);
+			}
+			else
+			{
+				dispatchEvent(new FileLoadEvent(FileLoadEvent.ANIMATIONS_COMPLETE, this.filename));
+			}
+		}
+		
 		/**
 		 * Fired when the mdl parse is complete.
 		 * 
@@ -239,5 +271,7 @@ package com.suite75.papervision3d.quake1.objects
 		private var _parsing:Boolean;
 		
 		private var _mdl:MDLReader;
+		
+		private var _totalFrames:uint;
 	}
 }
