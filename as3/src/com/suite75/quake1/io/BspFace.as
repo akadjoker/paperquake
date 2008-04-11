@@ -43,6 +43,13 @@ package com.suite75.quake1.io
 		public var max_t:Number;
 		public var size_s:Number;
 		public var size_t:Number;
+		
+		public var vertices:Array;
+		public var texturemins:Array;
+		public var texturemaxs:Array;
+		public var extents:Array;
+		public var texcoords:Array;
+		
 		public var cache_offset:Number;
 		
 		public function BspFace()
