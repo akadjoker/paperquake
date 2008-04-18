@@ -73,7 +73,7 @@ package com.suite75.quake1.io
 			this.lightmap_styles[1] = pData.readUnsignedByte(); // 14
 			this.lightmap_styles[2] = pData.readUnsignedByte(); // 15
 			this.lightmap_styles[3] = pData.readUnsignedByte(); // 16
-			this.lightmap_offset = pData.readInt();  // 20
+			this.lightmap_offset = pData.readUnsignedInt();  // 20
 		}
 	}
 }

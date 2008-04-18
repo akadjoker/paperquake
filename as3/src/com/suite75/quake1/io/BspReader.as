@@ -89,6 +89,9 @@ package com.suite75.quake1.io
 			readSurfEdges( this.data );
 			readLightMaps( this.data );
 
+			for each(var surf:BspFace in this.faces)
+				calcSurfaceExtents(surf);
+				
 			trace( "#planes : " + this.planes.length );
 			trace( "#textures : " + this.textures.length );
 			trace( "#tex_info : " + this.tex_info.length );
@@ -115,6 +118,68 @@ package com.suite75.quake1.io
 			dispatchEvent(event);
 		}
 
+		/**
+		 * 
+		 * @param	data
+		 */
+		private function calcSurfaceExtents(surf:BspFace):void
+		{
+			var i:int,
+				e:int,
+				v:Array,
+				edge:BspEdge,
+				tex:BspTexInfo,
+				mins:Array = new Array(2),
+				maxs:Array = new Array(2),
+				bmins:Array = new Array(2),
+				bmaxs:Array = new Array(2);
+			
+			mins[0] = mins[1] = 999999;
+            maxs[0] = maxs[1] = -99999;
+            
+			tex = this.tex_info[surf.texture_info];
+			
+			for(i = 0; i < surf.num_edges; i++)
+			{
+				e = this.surfedges[surf.first_edge + i];
+				
+				if (e >= 0)
+				{
+					edge = this.edges[e];
+                    v = this.vertices[edge.startvertex];
+    			}
+                else
+                {
+                	edge = this.edges[-e];
+                    v = this.vertices[edge.endvertex];
+                }
+                
+                var sval:Number = v[0] * tex.u_axis[0] + v[1] * tex.u_axis[1] + v[2] * tex.u_axis[2] + tex.u_offset;
+                var tval:Number = v[0] * tex.v_axis[0] + v[1] * tex.v_axis[1] + v[2] * tex.v_axis[2] + tex.v_offset;
+                
+                if(sval < mins[0])
+                	mins[0] = sval;
+                if(sval > maxs[0])
+                	maxs[0] = sval;
+                if(tval < mins[1])
+                	mins[1] = tval;
+                if(tval > maxs[1])
+                	maxs[1] = tval;
+			}
+			
+			surf.extents = new Array(2);
+			surf.texturemins = new Array(2);
+			
+			for(i = 0; i < 2; i++)
+			{
+				bmins[i] = Math.floor(mins[i] / 16);
+				bmaxs[i] = Math.ceil(maxs[i] / 16);
+				
+				surf.texturemins[i] = bmins[i] * 16;
+                surf.extents[i] = (bmaxs[i] - bmins[i]) * 16;
+			}
+		}
+		
 		/**
 		 * 
 		 * @param	data
