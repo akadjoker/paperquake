@@ -208,17 +208,12 @@ package com.suite75.papervision3d.quake1
 					if(surface.lightmap_offset >= 0 && material && material.bitmap)
 					{
 						// got a lightmap!
-						//var cmat:CompositeMaterial = new CompositeMaterial();
-						//cmat.addMaterial(new BitmapMaterial(material.bitmap.clone()));
-						//cmat.addMaterial(new BitmapMaterial(buildLightMap(surface, bbox, material.bitmap)));
 						var bm:BitmapData = buildLightMap(surface, bbox, material.bitmap);
 						
-						material = new BitmapMaterial(bm);
+						mesh.geometry.faces.push(new Triangle3D(mesh, [p0, p1, p2], new BitmapMaterial(bm), [t0, t1, t2]));
 					}
-					*/
-					var triangle:Triangle3D = new Triangle3D(mesh, [p0, p1, p2], material, [t0, t1, t2]);
-					
-					mesh.geometry.faces.push(triangle);
+					else*/
+						mesh.geometry.faces.push(new Triangle3D(mesh, [p0, p1, p2], material, [t0, t1, t2]));
 				}
 			}
 			
@@ -241,29 +236,33 @@ package com.suite75.papervision3d.quake1
 				sizes = [bbox.size.x, bbox.size.z];
 			else
 				sizes = [bbox.size.x, bbox.size.y];
-					
+				
+			sizes[0] = surface.max_s;
+			sizes[1] = surface.max_t;
+				
 			var lightmaps:Array = _reader.lightmaps;
 			var i:int = surface.lightmap_offset;
-			var w:int = (sizes[0] >> 4) + 1;
-			var h:int = (sizes[1] >> 4) + 1;
-			var lightmap:BitmapData = new BitmapData(w, h, true, 0xff000000);
+			var w:int = (sizes[0]) + 1;
+			var h:int = (sizes[1]) + 1;
+			var lightmap:BitmapData = new BitmapData(w, h, false, 0x000000);
 			
 			for(var y:int = 0; y < h; y++)
 			{
 				for(var x:int = 0; x < w; x++)
 				{
-					var c:int = lightmaps[i];
-					var color:uint = c << 24 | c << 16 | c << 8 | c;
-					lightmap.setPixel32(x, y, color);
+					var c:uint = lightmaps[i];
+
+					var color:uint = c << 16 | c << 8 | c;
+					lightmap.setPixel(x, y, color);
 				}
 			}
 			
 			var bm:BitmapData = bitmap.clone();
 			var matrix:Matrix = new Matrix();
 			
-			matrix.scale(16, 16);
+			matrix.scale(8, 8);
 		
-			bm.draw(lightmap, matrix, null, BlendMode.OVERLAY);
+			bm.draw(lightmap, matrix, null, BlendMode.MULTIPLY);
 			
 			return bm;
 		}
