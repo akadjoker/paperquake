@@ -157,6 +157,10 @@ package {
 			
 			loadMap(map);
 			
+			stage.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+			stage.addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+			stage.addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+			
 			stage.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
 			stage.addEventListener(KeyboardEvent.KEY_UP, onKeyUp);
 			
@@ -240,6 +244,17 @@ package {
 		private function onModelAnimationsComplete(event:FileLoadEvent):void
 		{
 			status.text = "WSAD to move.";
+			
+			try
+			{
+				var wav:WavFormat = WavFormat.decode(new pain5Sound());
+			}
+			catch(e:Error)
+			{
+				trace(e.message+"\n"+e.getStackTrace());
+			}
+			
+			SoundFactory.fromArray(wav.samples, wav.channels, wav.bits, wav.rate, onSoundComplete);	
 		}
 		
 		private function onModelProgress(event:ProgressEvent):void
@@ -348,7 +363,9 @@ package {
 		 */ 
 		private function onMouseDown(event:MouseEvent):void
 		{
-			
+			_lastX = event.stageX;
+			_lastY = event.stageY;
+			_orbiting = true;	
 		}
 		
 		/**
@@ -358,7 +375,15 @@ package {
 		 */ 
 		private function onMouseMove(event:MouseEvent):void
 		{
-			
+			if(_orbiting)
+			{
+				var dx : Number = (event.stageX - _lastX) / 2;
+
+				this.camera.yaw(dx);
+					
+				_lastX = event.stageX;
+				_lastY = event.stageY;
+			}
 		}
 		
 		/**
@@ -368,7 +393,8 @@ package {
 		 */ 
 		private function onMouseUp(event:MouseEvent):void
 		{
-			
+			_orbiting = false;
+			_turnLeft = _turnRight = false;
 		}
 		
 		private var _moveBackward:Boolean = false;
@@ -376,5 +402,8 @@ package {
 		private var _turnLeft:Boolean = false;
 		private var _turnRight:Boolean = false;
 		private var _loopSound:Boolean = true;
+		private var _orbiting:Boolean = false;
+		private var _lastX:Number = 0;
+		private var _lastY:Number = 0;
 	}
 }
