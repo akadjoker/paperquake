@@ -29,6 +29,8 @@ package com.suite75.quake1.io
 	
 	import flash.display.*;
 	import flash.events.*;
+	import flash.geom.Matrix;
+	import flash.geom.Rectangle;
 	import flash.net.*;
 	import flash.utils.*;
 
@@ -87,7 +89,7 @@ package com.suite75.quake1.io
 			readLeaves( this.data );
 			readEntities( this.data );
 			readSurfEdges( this.data );
-			readLightMaps( this.data );
+		//	readLightMaps( this.data );
 
 			for each(var surf:BspFace in this.faces)
 				calcSurfaceExtents(surf);
@@ -118,6 +120,78 @@ package com.suite75.quake1.io
 			dispatchEvent(event);
 		}
 
+		/**
+		 * Builds a lightmap for a surface.
+		 * 
+		 * @param	surf
+		 * @param	bitmap
+		 * 
+		 * @return
+		 */ 
+		public function buildLightMap(surf:BspFace, bitmap:BitmapData):BitmapData
+		{
+			var smax:uint,
+				tmax:uint,
+				blocklights:Array = new Array(64*64),
+				size:int,
+				i:int,
+				maps:int,
+				l:int = surf.lightmap_offset,
+				scl:uint,
+				lightdata:ByteArray = this.data,
+				lightlump:BspLump = this.header.lumps[BspLump.LUMP_LIGHTING],
+				bl_pos:int = 0;
+				
+			smax = (surf.extents[0] >> 4) + 1;
+            tmax = (surf.extents[1] >> 4) + 1;
+            size = smax * tmax;
+            
+            lightdata.position = 0;;
+            l += lightlump.offset;
+            
+            for(i = 0; i < 364; i++)
+                blocklights[i] = 0;
+                
+            for(maps = 0; maps < 4 && surf.lightmap_styles[maps] != 255; maps++)
+            {
+                scl = 264;
+
+                for (i = 0; i < size; i++)
+                    blocklights[i] += lightdata[l + i] * scl;
+
+                l += size;
+            }
+            
+            var buf:ByteArray = new ByteArray();
+
+			for(i = 0; i < size; i++, bl_pos++)
+			{
+				var t:uint = blocklights[bl_pos];
+			
+				t >>= 7;
+				
+				if (t > 255)
+					t = 255;
+
+				buf.writeUnsignedInt(0xff << 24 | t << 16 | t << 8 | t);
+            }
+            
+            buf.position = 0;
+    
+            var lightmap:BitmapData = new BitmapData(smax, tmax, true, 0x00000000);
+			
+			lightmap.setPixels(new Rectangle(0, 0, smax, tmax), buf);
+
+			var bm:BitmapData = bitmap.clone();
+			var matrix:Matrix = new Matrix();
+			
+			matrix.scale(bm.width/smax, bm.height/tmax);
+		
+			bm.draw(lightmap, matrix, null, BlendMode.MULTIPLY, null, true);
+			
+			return bm;
+		}
+		
 		/**
 		 * 
 		 * @param	data

@@ -31,7 +31,6 @@ package com.suite75.papervision3d.quake1
 	import flash.display.BlendMode;
 	import flash.display.Sprite;
 	import flash.events.*;
-	import flash.geom.ColorTransform;
 	import flash.geom.Matrix;
 	import flash.geom.Rectangle;
 	import flash.utils.ByteArray;
@@ -56,7 +55,7 @@ package com.suite75.papervision3d.quake1
 		public var scene:Scene3D;
 		
 		/** Papervision camera. */
-		public var camera:FrustumCamera3D;
+		public var camera:FreeCamera3D;
 		
 		/** Papervision viewport */
 		public var viewport:Viewport3D;
@@ -67,12 +66,20 @@ package com.suite75.papervision3d.quake1
 		/** The Quake BSP map. */
 		public var map:TriangleMesh3D;
 		
+		/** Use precise bitmap materials? */
+		public var precise:Boolean;
+		
+		/** Use lightmaps? */
+		public var useLightMaps:Boolean;
+		
 		/**
 		 * Constructor.
 		 */
-		public function QuakeEngine()
+		public function QuakeEngine(useLightMaps:Boolean=true, precise:Boolean=true)
 		{
 			init();
+			this.useLightMaps = useLightMaps;
+			this.precise = precise;
 		}
 		
 		/**
@@ -90,7 +97,10 @@ package com.suite75.papervision3d.quake1
 			this.renderer = new BasicRenderEngine();
 			this.scene = new Scene3D();
 			
-			this.camera = new FrustumCamera3D(this.viewport, 90, 1, 8000);	
+			//this.camera = new FrustumCamera3D(this.viewport, 90, 0.01, 8000);	
+			//this.camera.zoom = 10;
+			//this.camera.focus = 40;
+			this.camera = new FreeCamera3D(20, 20);
 			
 			_camPos = new Vertex3D();
 			
@@ -153,6 +163,7 @@ package com.suite75.papervision3d.quake1
 				// prevent creation of duplicate triangles!
 				if(_createdFaces[ surface ])
 					continue;	
+					
 				_createdFaces[ surface ] = true;
 				
 				// get texture info	
@@ -189,11 +200,13 @@ package com.suite75.papervision3d.quake1
 				
 				var bm:BitmapData;
 				
-				if(surface.lightmap_offset >= 0 && material && material.bitmap)
+				if(this.useLightMaps && surface.lightmap_offset >= 0 && material && material.bitmap)
 				{
 					// got a lightmap!
-					bm = buildLightMap(surface, material.bitmap);
-					material = new BitmapMaterial(bm);
+					bm = _reader.buildLightMap(surface, material.bitmap);
+					material = new BitmapMaterial(bm, this.precise);
+					BitmapMaterial(material).precision = 100;
+				//	BitmapMaterial(material).minimumRenderSize = 100;
 				}
 				
 				// need to triangulate...
@@ -221,66 +234,6 @@ package com.suite75.papervision3d.quake1
 			_leafMeshes[ index ] = this.map.addChild(mesh);
 			
 			return mesh;
-		}
-		
-		private function buildLightMap(surf:BspFace, bitmap:BitmapData):BitmapData
-		{
-			var smax:uint,
-				tmax:uint,
-				blocklights:Array = new Array(64*64),
-				size:int,
-				i:int,
-				maps:int,
-				l:int = surf.lightmap_offset,
-				scl:uint,
-				lightdata:Array = _reader.lightmaps,
-				bl_pos:int = 0;
-				
-			smax = (surf.extents[0] >> 4) + 1;
-            tmax = (surf.extents[1] >> 4) + 1;
-            size = smax * tmax;
-            
-            for(i = 0; i < 364; i++)
-                blocklights[i] = 0;
-                
-            for(maps = 0; maps < 1 && surf.lightmap_styles[maps] != 255; maps++)
-            {
-                scl = 264;
-
-                for (i = 0; i < size; i++)
-                    blocklights[i] += lightdata[l + i] * scl;
-
-                l += size;
-            }
-            
-            var buf:ByteArray = new ByteArray();
-
-			for(i = 0; i < size; i++, bl_pos++)
-			{
-				var t:uint = blocklights[bl_pos];
-			
-				t >>= 7;
-				
-				if (t > 255)
-					t = 255;
-
-				buf.writeUnsignedInt(0xff << 24 | t << 16 | t << 8 | t);
-            }
-            
-            buf.position = 0;
-    
-            var lightmap:BitmapData = new BitmapData(smax, tmax, true, 0x00000000);
-			
-			lightmap.setPixels(new Rectangle(0, 0, smax, tmax), buf);
-
-			var bm:BitmapData = bitmap.clone();
-			var matrix:Matrix = new Matrix();
-			
-			matrix.scale(bm.width/smax, bm.height/tmax);
-		
-			bm.draw(lightmap, matrix, null, BlendMode.MULTIPLY, null, true);
-			
-			return bm;
 		}
 		
 		/**
