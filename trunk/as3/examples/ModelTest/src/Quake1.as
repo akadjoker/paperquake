@@ -99,6 +99,7 @@ package {
 		 */ 
 		public function Quake1()
 		{
+			super(true, true);
 		}
 		
 		protected override function init():void
