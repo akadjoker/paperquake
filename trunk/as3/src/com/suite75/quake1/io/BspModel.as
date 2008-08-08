@@ -61,10 +61,10 @@ package com.suite75.quake1.io
 			this.origin[2] = data.readFloat();
 			
 			this.headnode = new Array( 4 );
-			this.headnode[0] = data.readFloat();
-			this.headnode[1] = data.readFloat();
-			this.headnode[2] = data.readFloat();
-			this.headnode[3] = data.readFloat();
+			this.headnode[0] = data.readInt();
+			this.headnode[1] = data.readInt();
+			this.headnode[2] = data.readInt();
+			this.headnode[3] = data.readInt();
 			
 			this.visleafs = data.readInt();
 			this.firstface = data.readInt();
