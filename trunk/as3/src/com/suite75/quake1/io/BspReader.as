@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 2007 (c) Tim Knip, suite75.com.
  *
  * Permission is hereby granted, free of charge, to any person
@@ -453,7 +453,9 @@ package com.suite75.quake1.io
 			
 			this.surfedges = new Array();
 			
-			for( var i:int = 0; i < lump.length; i++ )
+			var nSurfEdges:uint = lump.length / 4;
+			
+			for( var i:int = 0; i < nSurfEdges; i++ )
 			{
 				this.surfedges.push( data.readInt() );
 			}
