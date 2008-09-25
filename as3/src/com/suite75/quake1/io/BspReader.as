@@ -128,7 +128,8 @@ package com.suite75.quake1.io
 		 * 
 		 * @return
 		 */ 
-		public function buildLightMap(surf:BspFace, bitmap:BitmapData):BitmapData
+		public function buildLightMap(surf:BspFace, bitmap:BitmapData,
+			umin:Number, umax:Number, vmin:Number, vmax:Number):BitmapData
 		{
 			var smax:uint,
 				tmax:uint,
@@ -182,9 +183,18 @@ package com.suite75.quake1.io
 			
 			lightmap.setPixels(new Rectangle(0, 0, smax, tmax), buf);
 
-			var bm:BitmapData = bitmap.clone();
-			var matrix:Matrix = new Matrix();
+			var matrix:Matrix = new Matrix;
+			matrix.translate (-umin * bitmap.width, -vmin * bitmap.height);
+
+			var bm:BitmapData = new BitmapData (bitmap.width * (umax - umin), bitmap.height * (vmax - vmin), true, 0);
+			var sh:Shape = new Shape;
+			sh.graphics.beginBitmapFill (bitmap, matrix);
+			sh.graphics.drawRect (0, 0, bm.width, bm.height);
+			sh.graphics.endFill ();
 			
+			bm.draw(sh);
+
+			matrix.identity ();
 			matrix.scale(bm.width/smax, bm.height/tmax);
 		
 			bm.draw(lightmap, matrix, null, BlendMode.MULTIPLY, null, true);

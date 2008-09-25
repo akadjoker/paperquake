@@ -2,13 +2,17 @@ package {
 	import com.suite75.papervision3d.quake1.QuakeEngine;
 
 	import flash.display.StageAlign;
+	import flash.display.StageQuality;
 	import flash.display.StageScaleMode;
 	import flash.events.*;
+	import flash.geom.*;
 	
 	[SWF(width='800',height='600',backgroundColor='0x000000',frameRate='10')]
 	
 	public class Main extends QuakeEngine
 	{
+		public static const BRIGHTNESS:Number = 1.5;
+
 		public function Main()
 		{
 		}
@@ -19,8 +23,14 @@ package {
 			
 			stage.scaleMode = StageScaleMode.NO_SCALE;
 			stage.align = StageAlign.TOP_LEFT;
+			stage.quality = StageQuality.LOW;
 
 			loadMap("maps/e1m2.bsp");
+
+			stage.addEventListener (KeyboardEvent.KEY_DOWN, onKeyDown);
+			stage.addEventListener (KeyboardEvent.KEY_UP, onKeyUp);
+
+			transform.colorTransform = new ColorTransform (BRIGHTNESS, BRIGHTNESS, BRIGHTNESS);
 		}
 		
 		/**
@@ -28,7 +38,7 @@ package {
 		 * 
 		 * @param	event
 		 */ 
-		public override function loop3D(event:Event):void
+		public override function onRenderTick(event:Event):void
 		{
 			if(_moveForward)
 				this.camera.moveForward(10);
@@ -39,7 +49,7 @@ package {
 			if(_turnRight)
 				this.camera.yaw(2);
 				
-			super.loop3D(event);
+			super.onRenderTick(event);
 		}
 		
 		/**

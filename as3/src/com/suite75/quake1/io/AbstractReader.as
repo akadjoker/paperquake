@@ -78,7 +78,7 @@ package com.suite75.quake1.io
 		 */ 
 		protected function onLoadError(event:IOErrorEvent):void
 		{
-			
+			trace ("error loading file :(");
 		}
 		
 		/**
