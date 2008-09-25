@@ -30,9 +30,11 @@ package com.suite75.papervision3d.quake1
 	import flash.display.BitmapData;
 	import flash.display.BlendMode;
 	import flash.display.Sprite;
+	import flash.display.StageQuality;
 	import flash.events.*;
 	import flash.geom.Matrix;
 	import flash.geom.Rectangle;
+	//import flash.geom.ColorTransform;
 	import flash.utils.ByteArray;
 	import flash.utils.Dictionary;
 	
@@ -169,9 +171,8 @@ package com.suite75.papervision3d.quake1
 				// get texture info	
 				var texInfo:BspTexInfo = this._reader.tex_info[surface.texture_info];
 				
-				// texture axis
-				var u:Number3D = new Number3D(texInfo.u_axis[0], texInfo.u_axis[1], texInfo.u_axis[2]);
-				var v:Number3D = new Number3D(texInfo.v_axis[0], texInfo.v_axis[1], texInfo.v_axis[2]);
+				// texture bounds
+				var umin:Number = 1e3, umax:Number = -1e3, vmin:Number = 1e3, vmax:Number = -1e3;
 				
 				// loop over the edges
 				for(var j:int = 0; j < surface.num_edges; j++)
@@ -190,6 +191,12 @@ package com.suite75.papervision3d.quake1
 
 					// create PV3D texcoord
 					uvs[vertex] = buildTexCoord(vertex, texInfo, surface);
+
+					// update texture bounds
+					if (uvs[vertex].u < umin) umin = uvs[vertex].u;
+					if (uvs[vertex].v < vmin) vmin = uvs[vertex].v;
+					if (uvs[vertex].u > umax) umax = uvs[vertex].u;
+					if (uvs[vertex].v > vmax) vmax = uvs[vertex].v;
 					
 					// save vertex for triangulation
 					polygon.push(vertex);
@@ -202,11 +209,35 @@ package com.suite75.papervision3d.quake1
 				
 				if(this.useLightMaps && surface.lightmap_offset >= 0 && material && material.bitmap)
 				{
+					// who would believe it, but stage quality affects
+					// the way BitmapData.draw is done...
+					var stageQuality:String;
+					if (stage != null) {
+						stageQuality = stage.quality;
+						stage.quality = StageQuality.BEST;
+					}
+
 					// got a lightmap!
-					bm = _reader.buildLightMap(surface, material.bitmap);
+					bm = _reader.buildLightMap(surface, material.bitmap,
+						umin, umax, vmin, vmax);
 					material = new BitmapMaterial(bm, this.precise);
 					BitmapMaterial(material).precision = 100;
 				//	BitmapMaterial(material).minimumRenderSize = 100;
+
+					// lightmapped texture is scaled to fit the face exactly,
+					// so we need to recalculate UVs here
+					for each (var uv:NumberUV in uvs) {
+						uv.u = (uv.u - umin) / (umax - umin);
+						uv.v = (uv.v - vmin) / (vmax - vmin);
+					}
+
+					// highlight lightmaps in green for debug purposes
+					// material.bitmap.colorTransform (material.bitmap.rect, new ColorTransform (0.5, 1, 0.5));
+
+					// restore stage quality to user setting
+					if (stage != null) {
+						stage.quality = stageQuality;
+					}
 				}
 				
 				// need to triangulate...
@@ -257,6 +288,7 @@ package com.suite75.papervision3d.quake1
 					
 				var name:String = texture.name;
 				var material:BitmapMaterial = new BitmapMaterial(texture.bitmap);
+				material.tiled = true;
 
 				if(name.indexOf("+") != -1 || name.indexOf("*") != -1)
 					name = name.substr(1);
@@ -281,14 +313,9 @@ package com.suite75.papervision3d.quake1
 			
 			uv.u = Number3D.dot(n, u) + tex.u_offset;
 			uv.v = Number3D.dot(n, v) + tex.v_offset;
-			
-			uv.u -= surf.texturemins[0];
-			uv.v -= surf.texturemins[1];
-			
-			uv.u /= surf.extents[0];
-			uv.v /= surf.extents[1];
-			
-			uv.v = 1 - uv.v;
+
+			var t:BspTexture = BspTexture(this._reader.textures [tex.miptex]);
+			uv.u /= t.width; uv.v /= -t.height;
 			
 			return uv;
 		}
