@@ -45,9 +45,9 @@ package {
 			if(_moveBackward)
 				this.camera.moveBackward(10);
 			if(_turnLeft)
-				this.camera.yaw(-2);
-			if(_turnRight)
 				this.camera.yaw(2);
+			if(_turnRight)
+				this.camera.yaw(-2);
 				
 			super.onRenderTick(event);
 		}
