@@ -103,6 +103,7 @@ package com.suite75.papervision3d.quake1
 			//this.camera.zoom = 10;
 			//this.camera.focus = 40;
 			this.camera = new FreeCamera3D(20, 20);
+			this.camera.scaleX = -1;
 			
 			_camPos = new Vertex3D();
 			
@@ -255,7 +256,7 @@ package com.suite75.papervision3d.quake1
 					var t1:NumberUV = uvs[ p1 ];
 					var t2:NumberUV = uvs[ p2 ];
 
-					mesh.geometry.faces.push(new Triangle3D(mesh, [p0, p1, p2], material, [t0, t1, t2]));
+					mesh.geometry.faces.push(new Triangle3D(mesh, [p0, p2, p1], material, [t0, t2, t1]));
 				}
 			}
 			
