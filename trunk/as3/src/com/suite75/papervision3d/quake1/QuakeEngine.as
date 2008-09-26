@@ -173,7 +173,8 @@ package com.suite75.papervision3d.quake1
 				var texInfo:BspTexInfo = this._reader.tex_info[surface.texture_info];
 				
 				// texture bounds
-				var umin:Number = 1e3, umax:Number = -1e3, vmin:Number = 1e3, vmax:Number = -1e3;
+				surface.min_s = surface.min_t =  1e3;
+				surface.max_s = surface.max_t = -1e3;
 				
 				// loop over the edges
 				for(var j:int = 0; j < surface.num_edges; j++)
@@ -194,10 +195,10 @@ package com.suite75.papervision3d.quake1
 					uvs[vertex] = buildTexCoord(vertex, texInfo, surface);
 
 					// update texture bounds
-					if (uvs[vertex].u < umin) umin = uvs[vertex].u;
-					if (uvs[vertex].v < vmin) vmin = uvs[vertex].v;
-					if (uvs[vertex].u > umax) umax = uvs[vertex].u;
-					if (uvs[vertex].v > vmax) vmax = uvs[vertex].v;
+					if (uvs[vertex].u < surface.min_s) surface.min_s = uvs[vertex].u;
+					if (uvs[vertex].v < surface.min_t) surface.min_t = uvs[vertex].v;
+					if (uvs[vertex].u > surface.max_s) surface.max_s = uvs[vertex].u;
+					if (uvs[vertex].v > surface.max_t) surface.max_t = uvs[vertex].v;
 					
 					// save vertex for triangulation
 					polygon.push(vertex);
@@ -219,8 +220,7 @@ package com.suite75.papervision3d.quake1
 					}
 
 					// got a lightmap!
-					var bm:BitmapData = _reader.buildLightMap(surface, material.bitmap,
-						umin, umax, vmin, vmax);
+					var bm:BitmapData = _reader.buildLightMap(surface, material.bitmap);
 					material = new BitmapMaterial(bm, this.precise);
 					BitmapMaterial(material).precision = 100;
 				//	BitmapMaterial(material).minimumRenderSize = 100;
@@ -228,8 +228,8 @@ package com.suite75.papervision3d.quake1
 					// lightmapped texture is scaled to fit the face exactly,
 					// so we need to recalculate UVs here
 					for each (var uv:NumberUV in uvs) {
-						uv.u = (uv.u - umin) / (umax - umin);
-						uv.v = (uv.v - vmin) / (vmax - vmin);
+						uv.u = (uv.u - surface.min_s) / (surface.max_s - surface.min_s);
+						uv.v = (uv.v - surface.min_t) / (surface.max_t - surface.min_t);
 					}
 
 					// highlight lightmaps in green for debug purposes
