@@ -271,9 +271,9 @@ package {
 			if(_moveBackward)
 				this.camera.moveBackward(15);
 			if(_turnLeft)
-				this.camera.yaw(-5);
-			if(_turnRight)
 				this.camera.yaw(5);
+			if(_turnRight)
+				this.camera.yaw(-5);
 				
 			super.onRenderTick(event);
 		}
@@ -380,7 +380,7 @@ package {
 			{
 				var dx : Number = (event.stageX - _lastX) / 2;
 
-				this.camera.yaw(dx);
+				this.camera.yaw(-dx);
 					
 				_lastX = event.stageX;
 				_lastY = event.stageY;
