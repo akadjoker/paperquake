@@ -142,6 +142,12 @@ package com.suite75.quake1.io
 				lightdata:ByteArray = this.data,
 				lightlump:BspLump = this.header.lumps[BspLump.LUMP_LIGHTING],
 				bl_pos:int = 0;
+
+			if (l == -1) {
+				// since we do not have ambient, we can
+				// return solid black bitmap right away
+				return new BitmapData (2, 2, false, 0);
+			}
 				
 			smax = (surf.extents[0] >> 4) + 1;
             tmax = (surf.extents[1] >> 4) + 1;

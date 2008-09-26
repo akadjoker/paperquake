@@ -205,9 +205,9 @@ package com.suite75.papervision3d.quake1
 					material = _bitmapMaterials[texInfo.miptex];
 				}
 				
-				var bm:BitmapData;
+				var special:Boolean = BspTexture(this._reader.textures [texInfo.miptex]).special;
 				
-				if(this.useLightMaps && surface.lightmap_offset >= 0 && material && material.bitmap)
+				if(this.useLightMaps && (surface.lightmap_offset >= 0 || !special) && material && material.bitmap)
 				{
 					// who would believe it, but stage quality affects
 					// the way BitmapData.draw is done...
@@ -218,7 +218,7 @@ package com.suite75.papervision3d.quake1
 					}
 
 					// got a lightmap!
-					bm = _reader.buildLightMap(surface, material.bitmap,
+					var bm:BitmapData = _reader.buildLightMap(surface, material.bitmap,
 						umin, umax, vmin, vmax);
 					material = new BitmapMaterial(bm, this.precise);
 					BitmapMaterial(material).precision = 100;

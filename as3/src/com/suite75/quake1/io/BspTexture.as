@@ -36,6 +36,12 @@ package com.suite75.quake1.io
 	  	{
 	  		return (this.name.substr(0, 1) == "*" || this.name.substr(0, 1) == "+");	
 	  	}
+
+		public function get special():Boolean
+		{
+			// TEX_SPECIAL flag, as set in map.c, static int FindTexinfo (texinfo_t *t)
+			return (this.name.substr(0, 1) == "*" || this.name.substr(0, 3) == "sky");
+		}
 	  	
 	  	/**
 	  	 * 
